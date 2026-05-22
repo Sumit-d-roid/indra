@@ -1,4 +1,5 @@
 using System.Text;
+using System.Security.Cryptography;
 using Indra.Api.Data;
 using Indra.Api.Infrastructure;
 using Indra.Api.Models;
@@ -46,7 +47,7 @@ if (string.IsNullOrWhiteSpace(jwtOptions.Key))
 {
     if (builder.Environment.IsDevelopment())
     {
-        jwtOptions.Key = "LOCAL_DEVELOPMENT_ONLY_REPLACE_THIS_SIGNING_KEY_2026";
+        jwtOptions.Key = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
     }
     else
     {

@@ -63,6 +63,13 @@ Notes:
 - `appsettings.Development.json` clears the connection string so local development can run with an in-memory fallback.
 - `appsettings.json` intentionally leaves the production connection string and JWT signing key empty.
 - Configure secrets outside source control for non-development environments, for example with `ConnectionStrings__DefaultConnection` and `Jwt__Key`.
+
+Example production-style environment variables:
+
+```bash
+export ConnectionStrings__DefaultConnection=\"Host=localhost;Port=5432;Database=indra;Username=postgres;Password=replace-me\"
+export Jwt__Key=\"replace-with-a-long-random-base64-or-hex-signing-key\"
+```
 - The project includes `dotnet-ef` configuration so migrations can be managed locally:
 
 ```bash

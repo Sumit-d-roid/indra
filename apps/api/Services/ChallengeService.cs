@@ -43,7 +43,13 @@ public sealed class ChallengeService(IndraDbContext dbContext) : IChallengeServi
     {
         var responseCount = await dbContext.ChallengeResponses.CountAsync(cancellationToken);
         var category = SelectCategory(request.FocusArea, responseCount);
-        var prompt = PromptBank[category][responseCount % PromptBank[category].Length];
+        if (!PromptBank.TryGetValue(category, out var prompts))
+        {
+            category = PromptBank.Keys.First();
+            prompts = PromptBank[category];
+        }
+
+        var prompt = prompts[responseCount % prompts.Length];
         var challenge = new Challenge
         {
             Category = ToTitleCase(category),
