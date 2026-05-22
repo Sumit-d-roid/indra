@@ -6,6 +6,7 @@ import { indraApi } from '../lib/api'
 import { listBehaviorSignals, recordBehaviorSignal } from '../lib/behaviorSignals'
 import { getLatestMemoryAnchor, listMemoryAnchors, saveMemoryAnchor } from '../lib/memoryAnchors'
 import { listMissionImpacts, recordMissionImpact } from '../lib/missionImpacts'
+import { buildLongitudinalNarrative, persistLongitudinalNarrative } from '../lib/narrativeEngine'
 import { getActiveProtocol, recordProtocolSession } from '../lib/protocols'
 import { detectRecursiveReflection, estimateSelfPredictionProbability, interpretReflectionText } from '../lib/textSignals'
 import type { ActiveProtocol, Challenge, ChallengeHistoryItem, CognitiveEntry, CognitiveProfileSnapshot, MemoryAnchor } from '../types'
@@ -245,6 +246,10 @@ export function AutopilotPage() {
           missionImpacts: listMissionImpacts(),
         })
         persistCognitiveProfile(snapshot)
+        const narrative = buildLongitudinalNarrative(snapshot)
+        if (narrative) {
+          persistLongitudinalNarrative(narrative)
+        }
         setProfileSnapshot(snapshot)
 
         const latestEntry = entries[0] ?? null
@@ -386,6 +391,10 @@ export function AutopilotPage() {
         previousSnapshot: profileSnapshot,
       })
       persistCognitiveProfile(snapshot)
+      const narrative = buildLongitudinalNarrative(snapshot)
+      if (narrative) {
+        persistLongitudinalNarrative(narrative)
+      }
       setProfileSnapshot(snapshot)
 
       const summary = buildInsight(mission, challenge, response.trim(), reflectionDepth)

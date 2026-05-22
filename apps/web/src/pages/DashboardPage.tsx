@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { Panel } from '../components/Panel'
 import { indraApi } from '../lib/api'
 import { getStoredCognitiveProfile } from '../lib/cognitiveProfile'
 import { listMemoryAnchors } from '../lib/memoryAnchors'
+import { buildLongitudinalNarrative, listLongitudinalNarratives } from '../lib/narrativeEngine'
 import { getActiveProtocol } from '../lib/protocols'
 import type { ActiveProtocol, DashboardData, MemoryAnchor } from '../types'
 
@@ -13,6 +14,11 @@ export function DashboardPage() {
   const [activeProtocol, setActiveProtocol] = useState<ActiveProtocol | null>(() => getActiveProtocol())
   const [profileSnapshot, setProfileSnapshot] = useState(() => getStoredCognitiveProfile())
   const [error, setError] = useState<string | null>(null)
+  const narrative = useMemo(() => {
+    const generated = buildLongitudinalNarrative(profileSnapshot ?? undefined)
+    if (generated) return generated
+    return listLongitudinalNarratives()[0] ?? null
+  }, [profileSnapshot])
 
   useEffect(() => {
     let active = true
@@ -100,12 +106,13 @@ export function DashboardPage() {
             </NavLink>
           </div>
         ) : null}
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
           {[
             ['/check-in', 'Check-In', 'Capture your current state.'],
             ['/autopilot', 'Autopilot', 'Run one guided mission + challenge.'],
             ['/curiosity-graph', 'Graph', 'See how topics are connecting.'],
             ['/weekly-review', 'Weekly Review', 'Get 7-day bias + signal synthesis.'],
+            ['/narrative', 'Narrative', 'Read longitudinal psychological synthesis.'],
             ['/analytics', 'Analytics', 'Inspect detailed trend movement.'],
           ].map(([to, label, detail]) => (
             <NavLink key={to} to={to} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-cyan-300/30 hover:bg-cyan-300/10">
@@ -245,6 +252,12 @@ export function DashboardPage() {
               <p className="mt-1 text-xs text-slate-300">
                 resistance {Math.round(profileSnapshot.missionImpacts[0].resistanceLevel * 100)}% · future avoidance {Math.round(profileSnapshot.missionImpacts[0].futureAvoidanceProbability * 100)}%
               </p>
+            </div>
+          ) : null}
+          {narrative ? (
+            <div className="mt-4 rounded-2xl border border-indigo-300/15 bg-indigo-300/10 p-4">
+              <p className="text-xs uppercase tracking-[0.28em] text-indigo-100/80">Longitudinal narrative</p>
+              <p className="mt-2 text-sm text-slate-100">{narrative.compressedNarrative}</p>
             </div>
           ) : null}
         </Panel>

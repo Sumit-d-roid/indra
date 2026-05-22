@@ -39,6 +39,14 @@
   - mission impact model added (resistance, emotional effect, recovery cost, confidence shift, avoidance probability).
   - recursive reflection detection added for meta-pattern awareness.
   - synthesis layer added with explicit growth conditions, fragmentation conditions, surviving patterns, and pressure mapping.
+  - longitudinal narrative engine added:
+    - recurring theme extraction,
+    - arc detection (current/previous/emerging),
+    - turning point detection,
+    - narrative compression,
+    - recursive narrative awareness,
+    - existential continuity answers (who changed, what repeats, what fragments/coheres).
+  - dedicated Narrative page (`/narrative`) added and linked into app navigation/daily loop.
 
 ## Notes
 - Web API base now defaults to same-origin `/api` with Vite proxy to backend for GitHub dev URL compatibility.

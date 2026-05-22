@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Activity, Atom, Brain, CalendarRange, ChartNoAxesCombined, Cpu, ShieldHalf } from 'lucide-react'
+import { Activity, Atom, BookOpenText, Brain, CalendarRange, ChartNoAxesCombined, Cpu, ShieldHalf } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { getStoredCognitiveProfile } from '../lib/cognitiveProfile'
@@ -10,6 +10,7 @@ const navigation = [
   { to: '/check-in', label: 'Check-In', icon: Brain },
   { to: '/curiosity-graph', label: 'Curiosity Graph', icon: Atom },
   { to: '/weekly-review', label: 'Weekly Review', icon: CalendarRange },
+  { to: '/narrative', label: 'Narrative Engine', icon: BookOpenText },
   { to: '/analytics', label: 'Evolution Analytics', icon: ChartNoAxesCombined },
   { to: '/settings', label: 'Settings', icon: ShieldHalf },
 ]
@@ -20,6 +21,7 @@ const dailyLoop = [
   { to: '/autopilot', label: '3. Run autopilot' },
   { to: '/curiosity-graph', label: '4. Inspect graph' },
   { to: '/weekly-review', label: '5. Weekly review' },
+  { to: '/narrative', label: '6. Read narrative' },
 ]
 
 function getDailyLoopIndex(pathname: string) {
@@ -28,6 +30,7 @@ function getDailyLoopIndex(pathname: string) {
   if (pathname.startsWith('/autopilot')) return 2
   if (pathname.startsWith('/curiosity-graph')) return 3
   if (pathname.startsWith('/weekly-review')) return 4
+  if (pathname.startsWith('/narrative')) return 5
   return -1
 }
 

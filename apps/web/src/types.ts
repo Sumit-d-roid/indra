@@ -237,6 +237,39 @@ export type AdaptationInsights = {
   avoidancePressure: string[]
 }
 
+export type EvolutionArc = {
+  name: string
+  dominantPatterns: string[]
+  activeSince: string
+  confidence: number
+}
+
+export type NarrativeTurningPoint = {
+  title: string
+  detail: string
+  timestamp: string
+  weight: number
+}
+
+export type LongitudinalNarrative = {
+  generatedAtUtc: string
+  recurringThemes: string[]
+  currentArc: EvolutionArc
+  previousArc?: EvolutionArc
+  emergingArc?: EvolutionArc
+  turningPoints: NarrativeTurningPoint[]
+  compressedNarrative: string
+  recursiveNarrativeAwareness: string
+  existentialAnswers: {
+    changedFromPastSelf: string
+    whatChangedYou: string
+    whatKeepsRepeating: string
+    emergingSelf: string
+    fragmentationConditions: string
+    coherenceConditions: string
+  }
+}
+
 export type CognitivePatterns = {
   curiosityStyle: string
   avoidanceStyle: string

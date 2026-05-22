@@ -8,6 +8,7 @@ import { AutopilotPage } from './pages/AutopilotPage'
 import { CheckInPage } from './pages/CheckInPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { GraphPage } from './pages/GraphPage'
+import { NarrativePage } from './pages/NarrativePage'
 import { SettingsPage } from './pages/SettingsPage'
 import { WeeklyReviewPage } from './pages/WeeklyReviewPage'
 
@@ -34,6 +35,7 @@ function App() {
           <Route path="/check-in" element={<CheckInPage />} />
           <Route path="/curiosity-graph" element={<GraphPage />} />
           <Route path="/weekly-review" element={<WeeklyReviewPage />} />
+          <Route path="/narrative" element={<NarrativePage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/challenges" element={<Navigate to="/autopilot" replace />} />

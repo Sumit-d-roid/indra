@@ -4,6 +4,7 @@ import { Panel } from '../components/Panel'
 import { indraApi } from '../lib/api'
 import { getStoredCognitiveProfile } from '../lib/cognitiveProfile'
 import { listMemoryAnchors } from '../lib/memoryAnchors'
+import { buildLongitudinalNarrative, listLongitudinalNarratives, persistLongitudinalNarrative } from '../lib/narrativeEngine'
 import { activateProtocol, clearActiveProtocol, getActiveProtocol } from '../lib/protocols'
 import type { ActiveProtocol, CognitiveEntry, CognitiveProfileSnapshot, MemoryAnchor } from '../types'
 
@@ -76,6 +77,7 @@ export function WeeklyReviewPage() {
   const [anchors, setAnchors] = useState<MemoryAnchor[]>([])
   const [activeProtocol, setActiveProtocol] = useState<ActiveProtocol | null>(() => getActiveProtocol())
   const [profileSnapshot, setProfileSnapshot] = useState(() => getStoredCognitiveProfile())
+  const [narrative, setNarrative] = useState(() => listLongitudinalNarratives()[0] ?? null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -88,7 +90,13 @@ export function WeeklyReviewPage() {
         }
         setEntries(last7Days(allEntries))
         setAnchors(last7Days(listMemoryAnchors()))
-        setProfileSnapshot(getStoredCognitiveProfile())
+        const snapshot = getStoredCognitiveProfile()
+        setProfileSnapshot(snapshot)
+        const generated = buildLongitudinalNarrative(snapshot ?? undefined)
+        if (generated) {
+          persistLongitudinalNarrative(generated)
+          setNarrative(generated)
+        }
       } catch (loadError) {
         if (active) {
           setError(loadError instanceof Error ? loadError.message : 'Failed to build weekly review.')
@@ -249,6 +257,12 @@ export function WeeklyReviewPage() {
             <p className="mt-1 text-sm text-slate-300">Fragmentation: {profileSnapshot.adaptationInsights.fragmentationConditions[0]}</p>
             <p className="mt-1 text-sm text-slate-300">Surviving pattern: {profileSnapshot.adaptationInsights.survivingPatterns[0]}</p>
           </div>
+          {narrative ? (
+            <div className="mt-4 rounded-2xl border border-indigo-300/15 bg-indigo-300/10 p-4">
+              <p className="text-xs uppercase tracking-[0.28em] text-indigo-100/80">Longitudinal compression</p>
+              <p className="mt-2 text-sm text-slate-100">{narrative.compressedNarrative}</p>
+            </div>
+          ) : null}
         </Panel>
       ) : null}
 
@@ -306,6 +320,12 @@ export function WeeklyReviewPage() {
             className="rounded-full border border-white/15 bg-white/[0.03] px-4 py-2 text-xs uppercase tracking-[0.32em] text-slate-200"
           >
             log check-in
+          </NavLink>
+          <NavLink
+            to="/narrative"
+            className="rounded-full border border-indigo-300/25 bg-indigo-300/10 px-4 py-2 text-xs uppercase tracking-[0.32em] text-indigo-100"
+          >
+            open narrative
           </NavLink>
         </div>
         {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
