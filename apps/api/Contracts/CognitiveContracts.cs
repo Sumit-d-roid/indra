@@ -3,17 +3,17 @@ using System.ComponentModel.DataAnnotations;
 namespace Indra.Api.Contracts;
 
 public sealed record CognitiveEntryRequest(
-    [property: Range(1, 10)] int SleepQuality,
-    [property: Range(1, 10)] int FocusLevel,
-    [property: Range(1, 10)] int CuriosityLevel,
-    [property: Range(1, 10)] int Energy,
-    [property: Range(1, 10)] int Mood,
-    [property: Range(1, 10)] int MentalSharpness,
-    [property: Range(1, 10)] int Creativity,
-    [property: Range(1, 10)] int Stress,
-    [property: Range(1, 10)] int Motivation,
-    [property: Range(1, 10)] int IntellectualExcitement,
-    [property: Required, StringLength(120)] string EmotionalState);
+    [param: Range(1, 10)] int SleepQuality,
+    [param: Range(1, 10)] int FocusLevel,
+    [param: Range(1, 10)] int CuriosityLevel,
+    [param: Range(1, 10)] int Energy,
+    [param: Range(1, 10)] int Mood,
+    [param: Range(1, 10)] int MentalSharpness,
+    [param: Range(1, 10)] int Creativity,
+    [param: Range(1, 10)] int Stress,
+    [param: Range(1, 10)] int Motivation,
+    [param: Range(1, 10)] int IntellectualExcitement,
+    [param: Required, StringLength(120)] string EmotionalState);
 
 public sealed record CognitiveEntryResponse(
     Guid Id,

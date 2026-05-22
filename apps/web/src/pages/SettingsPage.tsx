@@ -5,9 +5,9 @@ export function SettingsPage() {
     <div className="grid gap-6 lg:grid-cols-2">
       <Panel title="System configuration" eyebrow="future AI abstraction layer">
         <div className="space-y-4 text-sm text-slate-300">
-          <p>API endpoint routing prepared for OpenAI-compatible challenge generation and future local model substitution.</p>
+          <p>API routing uses local-first defaults so the core loop runs without auth or cloud setup overhead.</p>
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 font-mono text-xs text-cyan-100">
-            VITE_API_BASE_URL=http://localhost:5187/api
+            VITE_API_BASE_URL=/api
           </div>
         </div>
       </Panel>

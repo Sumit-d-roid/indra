@@ -2,15 +2,14 @@ import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
 import { LoadingMessage } from './components/LoadingMessage'
-import { loadingMessages, futureModules } from './data/mockIndra'
+import { loadingMessages } from './data/mockIndra'
 import { AnalyticsPage } from './pages/AnalyticsPage'
-import { AuthPage } from './pages/AuthPage'
-import { ChallengesPage } from './pages/ChallengesPage'
+import { AutopilotPage } from './pages/AutopilotPage'
 import { CheckInPage } from './pages/CheckInPage'
 import { DashboardPage } from './pages/DashboardPage'
-import { FutureModulePage } from './pages/FutureModulePage'
 import { GraphPage } from './pages/GraphPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { WeeklyReviewPage } from './pages/WeeklyReviewPage'
 
 function App() {
   const [booting, setBooting] = useState(true)
@@ -30,14 +29,16 @@ function App() {
         <Route element={<AppShell />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/autopilot" element={<AutopilotPage />} />
           <Route path="/check-in" element={<CheckInPage />} />
-          <Route path="/challenges" element={<ChallengesPage />} />
           <Route path="/curiosity-graph" element={<GraphPage />} />
+          <Route path="/weekly-review" element={<WeeklyReviewPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/auth" element={<AuthPage />} />
-          <Route path="/shadow" element={<FutureModulePage module={futureModules.shadow} />} />
-          <Route path="/labyrinth" element={<FutureModulePage module={futureModules.labyrinth} />} />
+          <Route path="/challenges" element={<Navigate to="/autopilot" replace />} />
+          <Route path="/shadow" element={<Navigate to="/autopilot" replace />} />
+          <Route path="/labyrinth" element={<Navigate to="/weekly-review" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

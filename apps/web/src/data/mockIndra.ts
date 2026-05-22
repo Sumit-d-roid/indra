@@ -4,7 +4,6 @@ import type {
   CuriosityConnection,
   CuriosityNode,
   DashboardData,
-  FutureModule,
 } from '../types'
 
 export const loadingMessages = [
@@ -21,6 +20,14 @@ export const dashboardData: DashboardData = {
     cognitiveFocus: 'Neuroplasticity / Systems Imagination',
   },
   latestEntry: {
+    id: 'entry-seed',
+    createdAtUtc: '2026-05-22T08:00:00Z',
+    sleepQuality: 7,
+    energy: 6,
+    mood: 7,
+    mentalSharpness: 8,
+    stress: 4,
+    motivation: 8,
     emotionalState: 'quietly electrified',
     curiosityLevel: 9,
     focusLevel: 8,
@@ -210,21 +217,4 @@ export const analyticsData: AnalyticsData = {
     { category: 'Strategic Thinking', count: 5 },
     { category: 'Hypothetical Simulations', count: 3 },
   ],
-}
-
-export const futureModules: Record<'shadow' | 'labyrinth', FutureModule> = {
-  shadow: {
-    title: 'Shadow Module',
-    status: 'Foundational stub',
-    purpose:
-      'Future adversarial intelligence layer for blind-spot analysis, assumption attacks, and alternative viewpoint simulation.',
-    signals: ['assumption fracture detection', 'counter-narrative synthesis', 'reasoning pressure tests'],
-  },
-  labyrinth: {
-    title: 'Reality Disruption System',
-    status: 'Foundational stub',
-    purpose:
-      'Expandable architecture for paradox generators, impossible scenarios, worldview inversions, and surreal cognitive prompts.',
-    signals: ['constraint mutations', 'world-model inversions', 'surreal prompt seeds'],
-  },
 }

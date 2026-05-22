@@ -1,21 +1,38 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Activity, Atom, Binary, Brain, ChartNoAxesCombined, Lock, Route, ShieldHalf, Sparkles } from 'lucide-react'
+import { Activity, Atom, Brain, CalendarRange, ChartNoAxesCombined, Cpu, ShieldHalf } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
 const navigation = [
   { to: '/dashboard', label: 'Dashboard', icon: Activity },
+  { to: '/autopilot', label: 'Session Autopilot', icon: Cpu },
   { to: '/check-in', label: 'Check-In', icon: Brain },
-  { to: '/challenges', label: 'Challenges', icon: Sparkles },
   { to: '/curiosity-graph', label: 'Curiosity Graph', icon: Atom },
+  { to: '/weekly-review', label: 'Weekly Review', icon: CalendarRange },
   { to: '/analytics', label: 'Evolution Analytics', icon: ChartNoAxesCombined },
   { to: '/settings', label: 'Settings', icon: ShieldHalf },
-  { to: '/shadow', label: 'Shadow Module', icon: Binary },
-  { to: '/labyrinth', label: 'Labyrinth Module', icon: Route },
-  { to: '/auth', label: 'Access', icon: Lock },
 ]
+
+const dailyLoop = [
+  { to: '/dashboard', label: '1. Observe state' },
+  { to: '/check-in', label: '2. Run check-in' },
+  { to: '/autopilot', label: '3. Run autopilot' },
+  { to: '/curiosity-graph', label: '4. Inspect graph' },
+  { to: '/weekly-review', label: '5. Weekly review' },
+]
+
+function getDailyLoopIndex(pathname: string) {
+  if (pathname.startsWith('/dashboard')) return 0
+  if (pathname.startsWith('/check-in')) return 1
+  if (pathname.startsWith('/autopilot')) return 2
+  if (pathname.startsWith('/curiosity-graph')) return 3
+  if (pathname.startsWith('/weekly-review')) return 4
+  return -1
+}
 
 export function AppShell() {
   const location = useLocation()
+  const loopIndex = getDailyLoopIndex(location.pathname)
+  const nextStep = loopIndex >= 0 ? dailyLoop[(loopIndex + 1) % dailyLoop.length] : dailyLoop[0]
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-200">
@@ -49,9 +66,42 @@ export function AppShell() {
             ))}
           </nav>
 
+          <div className="mt-6 rounded-3xl border border-cyan-300/10 bg-cyan-300/5 p-4 text-sm text-slate-200">
+            <p className="text-[0.65rem] uppercase tracking-[0.4em] text-cyan-200/60">daily flow</p>
+            <p className="mt-3 text-slate-300">Follow this loop every session. The next step is highlighted.</p>
+            <NavLink
+              to={nextStep.to}
+              className="mt-4 block rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-center text-xs uppercase tracking-[0.28em] text-cyan-100 hover:border-cyan-200/40"
+            >
+              next: {nextStep.label}
+            </NavLink>
+            <div className="mt-4 space-y-2">
+              {dailyLoop.map((step, index) => {
+                const isActive = location.pathname.startsWith(step.to)
+                const isDone = loopIndex > index
+                return (
+                  <NavLink
+                    key={step.to}
+                    to={step.to}
+                    className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs ${
+                      isActive
+                        ? 'border-cyan-300/35 bg-cyan-300/10 text-cyan-100'
+                        : isDone
+                          ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100'
+                          : 'border-white/10 bg-white/5 text-slate-300'
+                    }`}
+                  >
+                    <span className="font-mono">{isDone ? '✓' : index + 1}</span>
+                    <span>{step.label.replace(/^\d+\.\s/, '')}</span>
+                  </NavLink>
+                )
+              })}
+            </div>
+          </div>
+
           <div className="mt-6 rounded-3xl border border-violet-300/10 bg-violet-300/5 p-4 text-sm text-slate-300">
             <p className="text-[0.65rem] uppercase tracking-[0.4em] text-violet-200/60">adaptive notice</p>
-            <p className="mt-3">Novel domain exposure recommended. Obsession cycles now converging around cybernetics and ritual systems.</p>
+            <p className="mt-3">Local observer mode active. No login required while you iterate on cognition loops and challenge quality.</p>
           </div>
         </aside>
 

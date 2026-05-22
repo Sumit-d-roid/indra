@@ -4,6 +4,24 @@ export type Metric = {
   insight: string
 }
 
+export type CognitiveEntry = {
+  id: string
+  createdAtUtc: string
+  sleepQuality: number
+  focusLevel: number
+  curiosityLevel: number
+  energy: number
+  mood: number
+  mentalSharpness: number
+  creativity: number
+  stress: number
+  motivation: number
+  intellectualExcitement: number
+  emotionalState: string
+}
+
+export type CognitiveEntryInput = Omit<CognitiveEntry, 'id' | 'createdAtUtc'>
+
 export type Challenge = {
   id: string
   category: string
@@ -95,13 +113,7 @@ export type DashboardData = {
     displayName: string
     cognitiveFocus: string
   }
-  latestEntry: {
-    emotionalState: string
-    curiosityLevel: number
-    focusLevel: number
-    creativity: number
-    intellectualExcitement: number
-  }
+  latestEntry: CognitiveEntry | null
   recentChallenges: Challenge[]
   notifications: Notification[]
   highlightMetrics: Metric[]
@@ -116,6 +128,7 @@ export type AnalyticsData = {
     abstractionDepth: number
   }>
   trendSnapshots: Array<{
+    createdAtUtc?: string
     title: string
     summary: string
     indicator: string
@@ -126,9 +139,31 @@ export type AnalyticsData = {
   }>
 }
 
-export type FutureModule = {
+export type ChallengeHistoryItem = {
+  challengeId: string
   title: string
-  status: string
-  purpose: string
-  signals: string[]
+  category: string
+  isCompleted: boolean
+  reflectionDepth: number
+  createdAtUtc: string
+}
+
+export type MemoryAnchor = {
+  id: string
+  createdAtUtc: string
+  insight: string
+  biasSpotted: string
+  nextProbe: string
+  missionObjective: string
+  challengeTitle: string
+}
+
+export type ActiveProtocol = {
+  id: string
+  createdAtUtc: string
+  title: string
+  details: string
+  targetSessions: number
+  completedSessions: number
+  lastCompletedAtUtc?: string
 }

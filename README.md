@@ -43,7 +43,7 @@ INDRA is an experimental personal cognitive operating system built as a dark, im
 ### Frontend
 
 - Immersive classified-laboratory shell with animated side navigation
-- Dashboard, Check-In, Challenges, Curiosity Graph, Analytics, Settings, Shadow, Labyrinth, and Auth pages
+- Dashboard, Check-In, Session Autopilot, Weekly Review, Curiosity Graph, Analytics, and Settings pages
 - D3-powered neural graph prototype with drag, zoom, and pan
 - Atmospheric styling, subtle motion, and terminal-like panels
 - Reusable component structure with mock API abstractions for future backend integration
@@ -99,6 +99,8 @@ cd /home/runner/work/indra/indra/apps/web && npm run build
 - **Password:** `Indra!2026`
 
 This credential is for local starter/demo use only.
+
+For local personal use, the main product loop (dashboard/check-in/challenges/graph) does not require login.
 
 ## Design intent
 

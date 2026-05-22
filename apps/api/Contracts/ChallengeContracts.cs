@@ -25,15 +25,15 @@ public sealed record MutationDiagnosticsResponse(
     string MutationDirective);
 
 public sealed record GenerateChallengeRequest(
-    [property: StringLength(120)] string? FocusArea,
-    [property: StringLength(120)] string? CurrentPattern,
-    [property: Range(1, 10)] int? PreferredDifficulty,
-    [property: Range(typeof(decimal), "0.20", "0.99")] decimal? NoveltyTarget,
-    [property: Range(1, 10)] int? MutationIntensity);
+    [param: StringLength(120)] string? FocusArea,
+    [param: StringLength(120)] string? CurrentPattern,
+    [param: Range(1, 10)] int? PreferredDifficulty,
+    [param: Range(typeof(decimal), "0.20", "0.99")] decimal? NoveltyTarget,
+    [param: Range(1, 10)] int? MutationIntensity);
 
 public sealed record SubmitChallengeResponseRequest(
-    [property: Required, StringLength(4000, MinimumLength = 8)] string ResponseText,
-    [property: Range(1, 10)] int ReflectionDepth,
+    [param: Required, StringLength(4000, MinimumLength = 8)] string ResponseText,
+    [param: Range(1, 10)] int ReflectionDepth,
     bool IsCompleted);
 
 public sealed record GeneratedChallengeResponse(ChallengeResponseItem Challenge, string GenerationRationale, MutationDiagnosticsResponse Diagnostics);

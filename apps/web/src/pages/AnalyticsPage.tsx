@@ -1,13 +1,40 @@
+import { useEffect, useState } from 'react'
 import { Panel } from '../components/Panel'
-import { analyticsData } from '../data/mockIndra'
+import { indraApi } from '../lib/api'
+import type { AnalyticsData } from '../types'
 
 export function AnalyticsPage() {
+  const [data, setData] = useState<AnalyticsData | null>(null)
+
+  useEffect(() => {
+    let active = true
+    const load = async () => {
+      const response = await indraApi.getAnalytics()
+      if (active) {
+        setData(response)
+      }
+    }
+
+    void load()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  if (!data) {
+    return (
+      <Panel title="Analytics" eyebrow="loading">
+        <p className="text-sm text-slate-300">Computing evolution analytics...</p>
+      </Panel>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <Panel title="Adaptation scores" eyebrow="long-term cognitive evolution">
           <div className="space-y-4">
-            {analyticsData.adaptationScores.map((score) => (
+            {data.adaptationScores.map((score) => (
               <div key={score.createdAtUtc} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                 <p className="text-xs uppercase tracking-[0.35em] text-slate-500">{new Date(score.createdAtUtc).toLocaleDateString()}</p>
                 <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
@@ -22,7 +49,7 @@ export function AnalyticsPage() {
 
         <Panel title="Challenge category distribution" eyebrow="intellectual diversity">
           <div className="space-y-4">
-            {analyticsData.challengeCategoryDistribution.map((item) => (
+            {data.challengeCategoryDistribution.map((item) => (
               <div key={item.category}>
                 <div className="mb-2 flex items-center justify-between text-sm text-slate-300">
                   <span>{item.category}</span>
@@ -38,7 +65,7 @@ export function AnalyticsPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {analyticsData.trendSnapshots.map((snapshot) => (
+        {data.trendSnapshots.map((snapshot) => (
           <Panel key={snapshot.title} title={snapshot.title} eyebrow={snapshot.indicator}>
             <p className="text-sm leading-6 text-slate-300">{snapshot.summary}</p>
           </Panel>
