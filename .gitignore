@@ -1,0 +1,6 @@
+node_modules
+dist
+apps/web/node_modules
+apps/web/dist
+apps/api/bin
+apps/api/obj
