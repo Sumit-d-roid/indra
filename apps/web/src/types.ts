@@ -158,3 +158,50 @@ export type ActiveProtocol = {
   completedSessions: number
   lastCompletedAtUtc?: string
 }
+
+export type CognitiveProfile = {
+  avoidance: number
+  consistency: number
+  reflectionDepth: number
+  challengeTolerance: number
+  emotionalVariance: number
+  noveltySeeking: number
+  selfAwareness: number
+}
+
+export type CognitivePatterns = {
+  curiosityStyle: string
+  avoidanceStyle: string
+  energyRhythm: string
+  emotionalTriggers: string
+  challengeTolerance: string
+  recoveryLatency: string
+  obsessionCycles: string
+  noveltyDecay: string
+  reflectionPattern: string
+  selfDeceptionPattern: string
+}
+
+export type TraitName = keyof CognitiveProfile
+
+export type TraitEvidence = {
+  trait: TraitName
+  signal: string
+  weight: number
+  timestamp: string
+  source: 'mission' | 'checkin' | 'journal'
+}
+
+export type CognitiveTraitConfidence = Record<TraitName, number>
+
+export type CognitiveProfileSnapshot = {
+  computedAtUtc: string
+  profile: CognitiveProfile
+  confidence: CognitiveTraitConfidence
+  evidence: Record<TraitName, TraitEvidence[]>
+  history: Array<{
+    timestamp: string
+    profile: CognitiveProfile
+  }>
+  patterns: CognitivePatterns
+}

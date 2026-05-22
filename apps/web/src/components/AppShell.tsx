@@ -1,6 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Activity, Atom, Brain, CalendarRange, ChartNoAxesCombined, Cpu, ShieldHalf } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { getStoredCognitiveProfile } from '../lib/cognitiveProfile'
 
 const navigation = [
   { to: '/dashboard', label: 'Dashboard', icon: Activity },
@@ -31,12 +33,37 @@ function getDailyLoopIndex(pathname: string) {
 
 export function AppShell() {
   const location = useLocation()
+  const [profileSnapshot, setProfileSnapshot] = useState(() => getStoredCognitiveProfile())
   const loopIndex = getDailyLoopIndex(location.pathname)
   const nextStep = loopIndex >= 0 ? dailyLoop[(loopIndex + 1) % dailyLoop.length] : dailyLoop[0]
+  const profile = profileSnapshot?.profile
+  const patterns = profileSnapshot?.patterns
+
+  useEffect(() => {
+    const refresh = () => setProfileSnapshot(getStoredCognitiveProfile())
+    window.addEventListener('focus', refresh)
+    return () => window.removeEventListener('focus', refresh)
+  }, [])
+
+  const atmosphereClass = useMemo(() => {
+    if (!profile) {
+      return 'bg-[radial-gradient(circle_at_top,_rgba(45,212,191,0.18),_transparent_26%),radial-gradient(circle_at_80%_20%,_rgba(167,139,250,0.18),_transparent_22%),linear-gradient(180deg,_rgba(2,6,23,0.6),_rgba(2,6,23,0.96))]'
+    }
+    if (profile.emotionalVariance > 0.68) {
+      return 'bg-[radial-gradient(circle_at_top,_rgba(251,113,133,0.20),_transparent_24%),radial-gradient(circle_at_80%_20%,_rgba(45,212,191,0.16),_transparent_26%),linear-gradient(180deg,_rgba(2,6,23,0.68),_rgba(2,6,23,0.98))]'
+    }
+    if (profile.noveltySeeking > 0.7) {
+      return 'bg-[radial-gradient(circle_at_top,_rgba(45,212,191,0.22),_transparent_26%),radial-gradient(circle_at_80%_20%,_rgba(167,139,250,0.24),_transparent_22%),linear-gradient(180deg,_rgba(2,6,23,0.58),_rgba(2,6,23,0.96))]'
+    }
+    if (profile.consistency > 0.7) {
+      return 'bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.20),_transparent_30%),radial-gradient(circle_at_80%_20%,_rgba(45,212,191,0.14),_transparent_24%),linear-gradient(180deg,_rgba(2,6,23,0.62),_rgba(2,6,23,0.96))]'
+    }
+    return 'bg-[radial-gradient(circle_at_top,_rgba(45,212,191,0.18),_transparent_26%),radial-gradient(circle_at_80%_20%,_rgba(167,139,250,0.18),_transparent_22%),linear-gradient(180deg,_rgba(2,6,23,0.6),_rgba(2,6,23,0.96))]'
+  }, [profile])
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-200">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(45,212,191,0.18),_transparent_26%),radial-gradient(circle_at_80%_20%,_rgba(167,139,250,0.18),_transparent_22%),linear-gradient(180deg,_rgba(2,6,23,0.6),_rgba(2,6,23,0.96))]" />
+      <div className={`absolute inset-0 ${atmosphereClass}`} />
       <div className="relative mx-auto grid min-h-screen max-w-[1600px] gap-6 px-4 py-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:px-6">
         <aside className="rounded-[2rem] border border-white/10 bg-slate-950/65 p-5 shadow-2xl backdrop-blur-xl">
           <div className="rounded-3xl border border-cyan-300/10 bg-white/[0.03] p-4">
@@ -101,7 +128,11 @@ export function AppShell() {
 
           <div className="mt-6 rounded-3xl border border-violet-300/10 bg-violet-300/5 p-4 text-sm text-slate-300">
             <p className="text-[0.65rem] uppercase tracking-[0.4em] text-violet-200/60">adaptive notice</p>
-            <p className="mt-3">Local observer mode active. No login required while you iterate on cognition loops and challenge quality.</p>
+            <p className="mt-3">
+              {patterns
+                ? `Profile mode: ${patterns.curiosityStyle}; ${patterns.avoidanceStyle}.`
+                : 'Local observer mode active. No login required while you iterate on cognition loops and challenge quality.'}
+            </p>
           </div>
         </aside>
 

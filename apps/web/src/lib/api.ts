@@ -84,6 +84,15 @@ async function withFallback<T>(live: () => Promise<T>, fallback: () => Promise<T
   }
 }
 
+function pickFallbackChallenge(preferredDifficulty?: number) {
+  if (typeof preferredDifficulty !== 'number') {
+    return challengePool[0]
+  }
+  return [...challengePool].sort(
+    (a, b) => Math.abs(a.difficulty - preferredDifficulty) - Math.abs(b.difficulty - preferredDifficulty),
+  )[0]
+}
+
 export const indraApi = {
   async getDashboardSummary() {
     return withFallback(
@@ -113,17 +122,42 @@ export const indraApi = {
     )
   },
   async generateChallenge(payload: GenerateChallengeRequest) {
-    const data = await request<{ challenge: Challenge; generationRationale: string }>('/challenges/generate', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
-    return data
+    return withFallback(
+      async () =>
+        request<{ challenge: Challenge; generationRationale: string }>('/challenges/generate', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        }),
+      async () => {
+        await simulatedLatency()
+        const challenge = pickFallbackChallenge(payload.preferredDifficulty)
+        return {
+          challenge,
+          generationRationale: 'Fallback challenge used while live generator is unavailable.',
+        }
+      },
+    )
   },
   async submitChallengeResponse(challengeId: string, payload: SubmitChallengeRequest) {
-    return request<ChallengeHistoryItem>(`/challenges/${challengeId}/responses`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
+    return withFallback(
+      async () =>
+        request<ChallengeHistoryItem>(`/challenges/${challengeId}/responses`, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        }),
+      async () => {
+        await simulatedLatency()
+        const sourceChallenge = challengePool.find((item) => item.id === challengeId) ?? challengePool[0]
+        return {
+          challengeId,
+          title: sourceChallenge?.title ?? 'Adaptive challenge',
+          category: sourceChallenge?.category ?? 'Adaptive',
+          isCompleted: payload.isCompleted,
+          reflectionDepth: payload.reflectionDepth,
+          createdAtUtc: new Date().toISOString(),
+        }
+      },
+    )
   },
   async getCuriosityGraph() {
     return withFallback(

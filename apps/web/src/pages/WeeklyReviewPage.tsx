@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { Panel } from '../components/Panel'
 import { indraApi } from '../lib/api'
+import { getStoredCognitiveProfile } from '../lib/cognitiveProfile'
 import { listMemoryAnchors } from '../lib/memoryAnchors'
 import { activateProtocol, clearActiveProtocol, getActiveProtocol } from '../lib/protocols'
 import type { ActiveProtocol, CognitiveEntry, MemoryAnchor } from '../types'
@@ -64,6 +65,7 @@ export function WeeklyReviewPage() {
   const [entries, setEntries] = useState<CognitiveEntry[]>([])
   const [anchors, setAnchors] = useState<MemoryAnchor[]>([])
   const [activeProtocol, setActiveProtocol] = useState<ActiveProtocol | null>(() => getActiveProtocol())
+  const [profileSnapshot, setProfileSnapshot] = useState(() => getStoredCognitiveProfile())
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -76,6 +78,7 @@ export function WeeklyReviewPage() {
         }
         setEntries(last7Days(allEntries))
         setAnchors(last7Days(listMemoryAnchors()))
+        setProfileSnapshot(getStoredCognitiveProfile())
       } catch (loadError) {
         if (active) {
           setError(loadError instanceof Error ? loadError.message : 'Failed to build weekly review.')
@@ -107,6 +110,15 @@ export function WeeklyReviewPage() {
   const strongestImproving = deltas.length > 0 ? [...deltas].sort((a, b) => b.delta - a.delta)[0] : null
   const stagnating = deltas.length > 0 ? [...deltas].sort((a, b) => Math.abs(a.delta) - Math.abs(b.delta))[0] : null
   const protocol = buildProtocol(biasCounts[0]?.label ?? null, stagnating)
+  const previousHistory = profileSnapshot && profileSnapshot.history.length >= 2
+    ? profileSnapshot.history[profileSnapshot.history.length - 2]?.profile
+    : null
+  const challengeDrift = profileSnapshot && previousHistory
+    ? profileSnapshot.profile.challengeTolerance - previousHistory.challengeTolerance
+    : null
+  const avoidanceDrift = profileSnapshot && previousHistory
+    ? profileSnapshot.profile.avoidance - previousHistory.avoidance
+    : null
   const protocolTitle = biasCounts[0]?.label
     ? `Bias reset: ${biasCounts[0].label}`
     : stagnating
@@ -156,6 +168,31 @@ export function WeeklyReviewPage() {
           </div>
         </Panel>
       </div>
+
+      {profileSnapshot ? (
+        <Panel title="Why INDRA believes this" eyebrow="cognitive evidence">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-200">
+              <p className="text-xs uppercase tracking-[0.28em] text-slate-400">challenge tolerance drift</p>
+              <p className="mt-2 text-slate-100">
+                {challengeDrift === null ? 'Need one more profile update.' : `${challengeDrift >= 0 ? '+' : ''}${challengeDrift.toFixed(2)} vs previous snapshot`}
+              </p>
+              <p className="mt-2 text-slate-300">
+                {profileSnapshot.evidence.challengeTolerance[0]?.signal ?? 'No challenge evidence yet.'}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-200">
+              <p className="text-xs uppercase tracking-[0.28em] text-slate-400">avoidance drift</p>
+              <p className="mt-2 text-slate-100">
+                {avoidanceDrift === null ? 'Need one more profile update.' : `${avoidanceDrift >= 0 ? '+' : ''}${avoidanceDrift.toFixed(2)} vs previous snapshot`}
+              </p>
+              <p className="mt-2 text-slate-300">
+                {profileSnapshot.evidence.avoidance[0]?.signal ?? 'No avoidance evidence yet.'}
+              </p>
+            </div>
+          </div>
+        </Panel>
+      ) : null}
 
       <Panel title="Next-week protocol" eyebrow="single concrete plan">
         <p className="text-sm leading-7 text-slate-100">{protocol}</p>

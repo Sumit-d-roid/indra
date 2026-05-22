@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { Panel } from '../components/Panel'
 import { indraApi } from '../lib/api'
+import { getStoredCognitiveProfile } from '../lib/cognitiveProfile'
 import { listMemoryAnchors } from '../lib/memoryAnchors'
 import { getActiveProtocol } from '../lib/protocols'
 import type { ActiveProtocol, DashboardData, MemoryAnchor } from '../types'
@@ -10,6 +11,7 @@ export function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [anchors, setAnchors] = useState<MemoryAnchor[]>(() => listMemoryAnchors())
   const [activeProtocol, setActiveProtocol] = useState<ActiveProtocol | null>(() => getActiveProtocol())
+  const [profileSnapshot, setProfileSnapshot] = useState(() => getStoredCognitiveProfile())
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -37,6 +39,7 @@ export function DashboardPage() {
     const refreshAnchors = () => {
       setAnchors(listMemoryAnchors())
       setActiveProtocol(getActiveProtocol())
+      setProfileSnapshot(getStoredCognitiveProfile())
     }
     window.addEventListener('focus', refreshAnchors)
     return () => {
@@ -145,6 +148,40 @@ export function DashboardPage() {
           </div>
         </Panel>
       </div>
+
+      {profileSnapshot ? (
+        <Panel title="Cognitive profile engine" eyebrow="adaptive profile">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {Object.entries(profileSnapshot.profile).map(([key, value]) => (
+              <div key={key} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs uppercase tracking-[0.22em] text-slate-400">{key.replace(/([A-Z])/g, ' $1')}</p>
+                <p className="mt-2 text-xl text-white">{Math.round(value * 100)}%</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-sm text-slate-300">
+            Current mode: {profileSnapshot.patterns.curiosityStyle}, {profileSnapshot.patterns.challengeTolerance}.
+          </p>
+          <div className="mt-4 rounded-2xl border border-violet-300/15 bg-violet-300/10 p-4">
+            <p className="text-xs uppercase tracking-[0.28em] text-violet-100/80">Why INDRA believes this</p>
+            <div className="mt-3 space-y-2 text-sm text-slate-200">
+              {Object.entries(profileSnapshot.confidence)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3)
+                .map(([trait, confidence]) => (
+                  <div key={trait} className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-300">
+                      {trait.replace(/([A-Z])/g, ' $1')} confidence {Math.round(confidence * 100)}%
+                    </p>
+                    <p className="mt-1 text-slate-100">
+                      {profileSnapshot.evidence[trait as keyof typeof profileSnapshot.evidence][0]?.signal ?? 'Collecting evidence...'}
+                    </p>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </Panel>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {data.highlightMetrics.map((metric) => (

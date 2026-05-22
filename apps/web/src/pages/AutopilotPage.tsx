@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { Panel } from '../components/Panel'
+import { computeCognitiveProfile, getStoredCognitiveProfile, persistCognitiveProfile } from '../lib/cognitiveProfile'
 import { indraApi } from '../lib/api'
-import { getLatestMemoryAnchor, saveMemoryAnchor } from '../lib/memoryAnchors'
+import { listBehaviorSignals, recordBehaviorSignal } from '../lib/behaviorSignals'
+import { getLatestMemoryAnchor, listMemoryAnchors, saveMemoryAnchor } from '../lib/memoryAnchors'
 import { getActiveProtocol, recordProtocolSession } from '../lib/protocols'
-import type { ActiveProtocol, Challenge, CognitiveEntry, MemoryAnchor } from '../types'
+import type { ActiveProtocol, Challenge, ChallengeHistoryItem, CognitiveEntry, CognitiveProfileSnapshot, MemoryAnchor } from '../types'
 
 type Stage = 'mission' | 'challenge' | 'summary'
 
@@ -14,7 +16,12 @@ type MissionPlan = {
   focusArea: string
   preferredDifficulty: number
   reflectionDepth: number
+  wordingMode: string
+  pacingHint: string
+  atmosphereTag: string
 }
+
+const clampNumber = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 
 function inferFocusFromBias(bias: string) {
   const normalized = bias.toLowerCase()
@@ -27,49 +34,95 @@ function inferFocusFromBias(bias: string) {
   return 'systems thinking'
 }
 
-function createMission(entry: CognitiveEntry | null, latestAnchor: MemoryAnchor | null): MissionPlan {
+function createMission(
+  entry: CognitiveEntry | null,
+  latestAnchor: MemoryAnchor | null,
+  snapshot: CognitiveProfileSnapshot | null,
+): MissionPlan {
+  const profile = snapshot?.profile
+  const patterns = snapshot?.patterns
   const focusFromAnchor = latestAnchor ? inferFocusFromBias(latestAnchor.biasSpotted) : null
+
+  const preferredDifficulty = profile
+    ? clampNumber(Math.round(2 + profile.challengeTolerance * 5 + profile.consistency * 2 - profile.avoidance * 2), 1, 10)
+    : 3
+
+  const reflectionDepth = profile
+    ? clampNumber(Math.round(4 + profile.reflectionDepth * 6), 1, 10)
+    : 6
+
+  const pacingHint = profile
+    ? profile.consistency > 0.7
+      ? 'steady cadence: 1 mission daily'
+      : 'compressed cadence: 1 mission every 48h'
+    : 'baseline cadence: 3 missions this week'
+
+  const wordingMode = profile
+    ? profile.selfAwareness > 0.6
+      ? 'abstract'
+      : 'direct'
+    : 'balanced'
+
+  const atmosphereTag = profile
+    ? profile.emotionalVariance > 0.68
+      ? 'stabilizing'
+      : profile.noveltySeeking > 0.7
+        ? 'exploratory'
+        : 'focused'
+    : 'baseline'
 
   if (!entry) {
     return {
-      objective: 'Run a baseline orientation mission',
+      objective: wordingMode === 'direct' ? 'Run one orienting mission with clear constraints' : 'Run a baseline orientation mission',
       reason: latestAnchor
-        ? `No recent check-in found, so we use your last bias ("${latestAnchor.biasSpotted}") to pick a targeted baseline mission.`
-        : 'No recent check-in found, so run a medium challenge to establish today’s signal.',
-      focusArea: focusFromAnchor ?? 'systems thinking',
-      preferredDifficulty: 3,
-      reflectionDepth: 6,
+        ? `No recent check-in found, so we adapt from your last bias: "${latestAnchor.biasSpotted}".`
+        : 'No recent check-in found, so this mission establishes current baseline.',
+      focusArea: focusFromAnchor ?? patterns?.curiosityStyle.includes('explor') ? 'systems thinking' : 'abstract reasoning',
+      preferredDifficulty,
+      reflectionDepth,
+      wordingMode,
+      pacingHint,
+      atmosphereTag,
     }
   }
 
-  if (entry.stress >= 8) {
+  if (profile && profile.avoidance > 0.7) {
     return {
-      objective: 'Stabilize thinking with constrained clarity',
-      reason: 'Stress is elevated, so mission narrows scope and lowers challenge load.',
+      objective: 'Stabilize cognition with constrained, low-ambiguity pressure',
+      reason: `Friction avoidance is elevated; run precise scope with shorter recovery loop. (${patterns?.avoidanceStyle ?? 'adaptive fallback'})`,
       focusArea: focusFromAnchor ?? 'abstract reasoning',
-      preferredDifficulty: 2,
-      reflectionDepth: 5,
+      preferredDifficulty: clampNumber(preferredDifficulty - 2, 1, 10),
+      reflectionDepth: clampNumber(reflectionDepth - 1, 1, 10),
+      wordingMode,
+      pacingHint,
+      atmosphereTag,
     }
   }
 
-  if (entry.curiosityLevel >= 8 && entry.focusLevel >= 7) {
+  if (profile && profile.noveltySeeking > 0.68 && profile.challengeTolerance > 0.62) {
     return {
-      objective: 'Push deep synthesis across domains',
-      reason: 'Focus and curiosity are both high, so mission can run at max depth.',
+      objective: 'Push synthesis under high ambiguity and novelty pressure',
+      reason: `Profile supports deeper abstraction and novelty throughput. (${patterns?.challengeTolerance ?? 'high tolerance'})`,
       focusArea: focusFromAnchor ?? 'systems thinking',
-      preferredDifficulty: 5,
-      reflectionDepth: 8,
+      preferredDifficulty: clampNumber(preferredDifficulty + 1, 1, 10),
+      reflectionDepth: clampNumber(reflectionDepth + 1, 1, 10),
+      wordingMode,
+      pacingHint,
+      atmosphereTag,
     }
   }
 
   return {
-    objective: 'Rebuild momentum with one precise challenge',
+    objective: 'Rebuild momentum with one targeted challenge',
     reason: latestAnchor
-      ? `Balanced mission tuned by your last bias: "${latestAnchor.biasSpotted}".`
-      : 'Current signals suggest balanced intensity with a single meaningful rep.',
+      ? `Mission tuned using latest bias: "${latestAnchor.biasSpotted}".`
+      : 'Balanced adaptation from current cognitive state.',
     focusArea: focusFromAnchor ?? 'perspective inversion',
-    preferredDifficulty: 3,
-    reflectionDepth: 7,
+    preferredDifficulty,
+    reflectionDepth,
+    wordingMode,
+    pacingHint,
+    atmosphereTag,
   }
 }
 
@@ -86,23 +139,29 @@ function pickChallenge(challenges: Challenge[], preferredDifficulty: number) {
 
 function buildInsight(plan: MissionPlan, challenge: Challenge, response: string, depth: number) {
   const density = response.length > 260 ? 'high' : response.length > 140 ? 'medium' : 'light'
-  return `Mission complete: ${plan.objective.toLowerCase()}. You closed "${challenge.title}" at depth ${depth}/10 with ${density} response density. Next move: review curiosity graph for drift, then lock one trend in analytics.`
+  return `Mission complete: ${plan.objective.toLowerCase()}. You closed "${challenge.title}" at depth ${depth}/10 with ${density} response density. Next move: update anchor, inspect graph drift, then review weekly protocol alignment.`
 }
 
-function createAnchorDraft(challenge: Challenge, response: string) {
+function createAnchorDraft(challenge: Challenge, response: string, snapshot: CognitiveProfileSnapshot | null) {
   const compact = response.replace(/\s+/g, ' ').trim()
   const firstLine = compact.slice(0, 90)
   return {
     insight: firstLine.length > 0 ? firstLine : `I made progress on "${challenge.title}".`,
-    biasSpotted: response.length < 140 ? 'I stayed too surface-level in reasoning.' : 'I leaned too hard on familiar framing.',
+    biasSpotted:
+      response.length < 140
+        ? 'I stayed too surface-level in reasoning.'
+        : snapshot?.patterns.selfDeceptionPattern ?? 'I leaned too hard on familiar framing.',
     nextProbe: `Test the opposite assumption behind "${challenge.title}" in tomorrow's mission.`,
   }
 }
 
 export function AutopilotPage() {
+  const [entries, setEntries] = useState<CognitiveEntry[]>([])
   const [entry, setEntry] = useState<CognitiveEntry | null>(null)
   const [challenge, setChallenge] = useState<Challenge | null>(null)
   const [latestAnchor, setLatestAnchor] = useState<MemoryAnchor | null>(null)
+  const [history, setHistory] = useState<ChallengeHistoryItem[]>([])
+  const [profileSnapshot, setProfileSnapshot] = useState<CognitiveProfileSnapshot | null>(() => getStoredCognitiveProfile())
   const [activeProtocol, setActiveProtocol] = useState<ActiveProtocol | null>(() => getActiveProtocol())
   const [stage, setStage] = useState<Stage>('mission')
   const [response, setResponse] = useState('')
@@ -116,25 +175,61 @@ export function AutopilotPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const mission = useMemo(() => createMission(entry, latestAnchor), [entry, latestAnchor])
+  const mission = useMemo(
+    () => createMission(entry, latestAnchor, profileSnapshot),
+    [entry, latestAnchor, profileSnapshot],
+  )
+
+  const missionTonePlaceholder =
+    mission.wordingMode === 'direct'
+      ? 'Write concise reasoning: claim, evidence, counterpoint, revised claim.'
+      : mission.wordingMode === 'abstract'
+        ? 'Write your response, then invert one assumption and re-synthesize at a higher abstraction level.'
+        : 'Write your response. Keep it concrete, then push one abstraction level deeper.'
+
+  const missionThemeClass =
+    mission.atmosphereTag === 'stabilizing'
+      ? 'border-amber-300/20 bg-amber-300/10'
+      : mission.atmosphereTag === 'exploratory'
+        ? 'border-violet-300/20 bg-violet-300/10'
+        : 'border-cyan-300/20 bg-cyan-300/10'
 
   useEffect(() => {
     let active = true
     const load = async () => {
       try {
-        const [entries, challenges] = await Promise.all([indraApi.getCognitiveEntries(), indraApi.getChallenges()])
+        const [entries, challenges, challengeHistory] = await Promise.all([
+          indraApi.getCognitiveEntries(),
+          indraApi.getChallenges(),
+          indraApi.getChallengeHistory(),
+        ])
         if (!active) {
           return
         }
 
         const storedAnchor = getLatestMemoryAnchor()
+        const storedProtocol = getActiveProtocol()
+        const allAnchors = listMemoryAnchors()
+
         setLatestAnchor(storedAnchor)
-        setActiveProtocol(getActiveProtocol())
+        setEntries(entries)
+        setActiveProtocol(storedProtocol)
+        setHistory(challengeHistory)
+
+        const snapshot = computeCognitiveProfile({
+          entries,
+          anchors: allAnchors,
+          history: challengeHistory,
+          activeProtocol: storedProtocol,
+          behaviorSignals: listBehaviorSignals(),
+        })
+        persistCognitiveProfile(snapshot)
+        setProfileSnapshot(snapshot)
 
         const latestEntry = entries[0] ?? null
         setEntry(latestEntry)
 
-        const derivedMission = createMission(latestEntry, storedAnchor)
+        const derivedMission = createMission(latestEntry, storedAnchor, snapshot)
         setReflectionDepth(derivedMission.reflectionDepth)
 
         if (challenges.length > 0) {
@@ -168,6 +263,12 @@ export function AutopilotPage() {
   const rerollChallenge = async () => {
     setBusy(true)
     try {
+      recordBehaviorSignal({
+        trait: 'avoidance',
+        source: 'mission',
+        signal: 'challenge reroll before completion',
+        weight: 0.55,
+      })
       const generated = await indraApi.generateChallenge({
         focusArea: mission.focusArea,
         currentPattern: challenge?.title,
@@ -193,16 +294,36 @@ export function AutopilotPage() {
     setBusy(true)
     setError(null)
     try {
-      await indraApi.submitChallengeResponse(challenge.id, {
+      const submitted = await indraApi.submitChallengeResponse(challenge.id, {
         responseText: response.trim(),
         reflectionDepth,
         isCompleted: true,
       })
+      recordBehaviorSignal({
+        trait: 'challengeTolerance',
+        source: 'mission',
+        signal: `mission completed at reflection depth ${reflectionDepth}`,
+        weight: 0.78,
+      })
 
-      setActiveProtocol(recordProtocolSession())
+      const updatedHistory = [submitted, ...history]
+      setHistory(updatedHistory)
+      const updatedProtocol = recordProtocolSession()
+      setActiveProtocol(updatedProtocol)
+
+      const snapshot = computeCognitiveProfile({
+        entries,
+        anchors: listMemoryAnchors(),
+        history: updatedHistory,
+        activeProtocol: updatedProtocol,
+        behaviorSignals: listBehaviorSignals(),
+        previousSnapshot: profileSnapshot,
+      })
+      persistCognitiveProfile(snapshot)
+      setProfileSnapshot(snapshot)
 
       const summary = buildInsight(mission, challenge, response.trim(), reflectionDepth)
-      const draft = createAnchorDraft(challenge, response.trim())
+      const draft = createAnchorDraft(challenge, response.trim(), snapshot)
       setInsight(summary)
       setAnchorInsight(draft.insight)
       setAnchorBias(draft.biasSpotted)
@@ -229,6 +350,12 @@ export function AutopilotPage() {
       missionObjective: mission.objective,
       challengeTitle: challenge.title,
     })
+    recordBehaviorSignal({
+      trait: 'selfAwareness',
+      source: 'journal',
+      signal: `saved anchor with bias "${anchorBias.trim()}"`,
+      weight: 0.72,
+    })
     setLatestAnchor(stored)
     setAnchorSaved(true)
     setError(null)
@@ -237,7 +364,7 @@ export function AutopilotPage() {
   if (loading || !challenge) {
     return (
       <Panel title="Session Autopilot" eyebrow="initializing mission">
-        <p className="text-sm text-slate-300">{error ?? 'Building today’s mission from your latest signals...'}</p>
+        <p className="text-sm text-slate-300">{error ?? 'Building today’s mission from your cognitive profile...'}</p>
       </Panel>
     )
   }
@@ -247,7 +374,7 @@ export function AutopilotPage() {
       <Panel title="Session Autopilot" eyebrow="one mission per session">
         {stage === 'mission' ? (
           <div className="space-y-4">
-            <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/10 p-4">
+            <div className={`rounded-2xl border p-4 ${missionThemeClass}`}>
               <p className="text-xs uppercase tracking-[0.32em] text-cyan-200/60">mission objective</p>
               <p className="mt-2 text-lg text-white">{mission.objective}</p>
             </div>
@@ -256,10 +383,19 @@ export function AutopilotPage() {
               <span className="rounded-full border border-white/10 px-3 py-2">focus: {mission.focusArea}</span>
               <span className="rounded-full border border-white/10 px-3 py-2">difficulty: {mission.preferredDifficulty}</span>
               <span className="rounded-full border border-white/10 px-3 py-2">depth: {mission.reflectionDepth}</span>
+              <span className="rounded-full border border-white/10 px-3 py-2">pacing: {mission.pacingHint}</span>
             </div>
             <button
               type="button"
-              onClick={() => setStage('challenge')}
+              onClick={() => {
+                recordBehaviorSignal({
+                  trait: 'consistency',
+                  source: 'mission',
+                  signal: 'mission challenge stage started',
+                  weight: 0.45,
+                })
+                setStage('challenge')
+              }}
               className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-5 py-3 text-xs uppercase tracking-[0.35em] text-cyan-100"
             >
               begin challenge
@@ -278,7 +414,7 @@ export function AutopilotPage() {
               value={response}
               onChange={(event) => setResponse(event.target.value)}
               className="min-h-48 w-full rounded-[1.5rem] border border-white/10 bg-slate-950/70 px-5 py-4 text-sm leading-7 text-slate-100 outline-none placeholder:text-slate-500"
-              placeholder="Write your response. Keep it concrete, then push one abstraction level deeper."
+              placeholder={missionTonePlaceholder}
             />
             <div className="flex items-center gap-3 text-sm text-slate-300">
               <span>reflection depth</span>
@@ -355,7 +491,7 @@ export function AutopilotPage() {
               >
                 save anchor
               </button>
-              {anchorSaved ? <p className="mt-3 text-sm text-emerald-200">Anchor saved. Tomorrow's mission will adapt from it.</p> : null}
+              {anchorSaved ? <p className="mt-3 text-sm text-emerald-200">Anchor saved. Tomorrow’s mission will adapt from it.</p> : null}
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -395,6 +531,19 @@ export function AutopilotPage() {
       </Panel>
 
       <div className="space-y-6">
+        <Panel title="Cognitive profile" eyebrow="inferred operating pattern">
+          {profileSnapshot ? (
+            <div className="space-y-3 text-sm text-slate-300">
+              <p>Curiosity style: <span className="text-slate-100">{profileSnapshot.patterns.curiosityStyle}</span></p>
+              <p>Avoidance style: <span className="text-slate-100">{profileSnapshot.patterns.avoidanceStyle}</span></p>
+              <p>Challenge tolerance: <span className="text-slate-100">{profileSnapshot.patterns.challengeTolerance}</span></p>
+              <p>Recovery latency: <span className="text-slate-100">{profileSnapshot.patterns.recoveryLatency}</span></p>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-300">Profile initializing from your recent data.</p>
+          )}
+        </Panel>
+
         <Panel title="Autopilot context" eyebrow="signal source">
           <p className="text-sm leading-7 text-slate-300">
             {entry

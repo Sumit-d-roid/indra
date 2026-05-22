@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Panel } from '../components/Panel'
 import { cognitiveEntryTemplate } from '../data/mockIndra'
 import { indraApi } from '../lib/api'
+import { recordBehaviorSignal } from '../lib/behaviorSignals'
 import type { CognitiveEntry, CognitiveEntryInput } from '../types'
 
 const sliders = [
@@ -67,6 +68,12 @@ export function CheckInPage() {
     try {
       const created = await indraApi.createCognitiveEntry(form)
       setEntries((current) => [created, ...current])
+      recordBehaviorSignal({
+        trait: 'consistency',
+        source: 'checkin',
+        signal: `daily check-in saved with focus ${form.focusLevel}/10 and stress ${form.stress}/10`,
+        weight: 0.64,
+      })
       setStatus('Scan saved.')
     } catch (error) {
       setStatus(error instanceof Error ? `Save failed: ${error.message}` : 'Save failed.')
