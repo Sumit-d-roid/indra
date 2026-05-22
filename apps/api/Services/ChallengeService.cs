@@ -104,5 +104,10 @@ public sealed class ChallengeService(IndraDbContext dbContext) : IChallengeServi
         return PromptBank.Keys.ElementAt(responseCount % PromptBank.Count);
     }
 
-    private static string ToTitleCase(string value) => string.Join(' ', value.Split(' ').Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
+    private static string ToTitleCase(string value) =>
+        string.Join(' ', value
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Length == 1
+                ? char.ToUpperInvariant(part[0]).ToString()
+                : $"{char.ToUpperInvariant(part[0])}{part[1..]}"));
 }

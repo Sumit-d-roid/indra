@@ -61,7 +61,8 @@ dotnet run
 Notes:
 
 - `appsettings.Development.json` clears the connection string so local development can run with an in-memory fallback.
-- `appsettings.json` contains a PostgreSQL connection string placeholder for relational environments.
+- `appsettings.json` intentionally leaves the production connection string and JWT signing key empty.
+- Configure secrets outside source control for non-development environments, for example with `ConnectionStrings__DefaultConnection` and `Jwt__Key`.
 - The project includes `dotnet-ef` configuration so migrations can be managed locally:
 
 ```bash

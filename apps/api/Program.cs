@@ -27,7 +27,14 @@ builder.Services.AddCors(options =>
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
 {
-    builder.Services.AddDbContext<IndraDbContext>(options => options.UseInMemoryDatabase("indra-dev"));
+    if (builder.Environment.IsDevelopment())
+    {
+        builder.Services.AddDbContext<IndraDbContext>(options => options.UseInMemoryDatabase("indra-dev"));
+    }
+    else
+    {
+        throw new InvalidOperationException("A relational database connection string must be configured outside development.");
+    }
 }
 else
 {
@@ -35,7 +42,25 @@ else
 }
 
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
-builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+if (string.IsNullOrWhiteSpace(jwtOptions.Key))
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        jwtOptions.Key = "LOCAL_DEVELOPMENT_ONLY_REPLACE_THIS_SIGNING_KEY_2026";
+    }
+    else
+    {
+        throw new InvalidOperationException("A JWT signing key must be configured outside development.");
+    }
+}
+
+builder.Services.Configure<JwtOptions>(options =>
+{
+    options.Issuer = jwtOptions.Issuer;
+    options.Audience = jwtOptions.Audience;
+    options.Key = jwtOptions.Key;
+    options.ExpirationMinutes = jwtOptions.ExpirationMinutes;
+});
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
