@@ -1,5 +1,6 @@
 import type {
   ActiveProtocol,
+  AdaptationInsights,
   BehavioralRhythm,
   ChallengeHistoryItem,
   ContextualTraitMap,
@@ -7,6 +8,8 @@ import type {
   DynamicIdentityState,
   EvolutionEvent,
   InternalTension,
+  MetaAwareness,
+  MissionImpact,
   CognitivePatterns,
   CognitiveProfile,
   CognitiveProfileSnapshot,
@@ -114,6 +117,24 @@ function readStoredSnapshot() {
       },
       currentState: parsed.currentState ?? 'stabilizing-recovery',
       evolutionEvents: Array.isArray(parsed.evolutionEvents) ? parsed.evolutionEvents : [],
+      missionImpacts: Array.isArray(parsed.missionImpacts) ? parsed.missionImpacts : [],
+      metaAwareness: parsed.metaAwareness ?? {
+        selfEstimationBias: 0,
+        confidence: 0.2,
+        summary: 'Not enough mission prediction data yet.',
+      },
+      recursiveReflection: parsed.recursiveReflection ?? {
+        detected: false,
+        confidence: 0.2,
+        detail: 'No recursive reflection pattern detected yet.',
+      },
+      adaptationInsights: parsed.adaptationInsights ?? {
+        growthConditions: [],
+        fragmentationConditions: [],
+        survivingPatterns: [],
+        adaptivePressure: [],
+        avoidancePressure: [],
+      },
     }
   } catch {
     return null
@@ -339,6 +360,7 @@ function deriveEvolutionEvents(
   profile: CognitiveProfile,
   tensions: InternalTension[],
   recovery: RecoverySignature,
+  latestImpact: MissionImpact | null,
 ): EvolutionEvent[] {
   const events = [...(previous?.evolutionEvents ?? [])]
   const prev = previous?.profile
@@ -358,7 +380,77 @@ function deriveEvolutionEvents(
   if (recovery.recoveryLatencyHours < 18) {
     pushEvent('Fast recovery milestone', 'You recovered from failure faster than your baseline window.', 0.69)
   }
+  if (latestImpact && latestImpact.recursiveReflectionDetected) {
+    pushEvent('Recursive reflection event', 'You reflected on a previous reflection pattern, increasing metacognitive depth.', 0.73)
+  }
   return events.slice(-30)
+}
+
+function deriveMetaAwareness(missionImpacts: MissionImpact[]): MetaAwareness {
+  if (missionImpacts.length < 3) {
+    return {
+      selfEstimationBias: 0,
+      confidence: 0.2,
+      summary: 'Not enough mission prediction data yet.',
+    }
+  }
+  const deltas = missionImpacts.map((impact) => (impact.actualCompleted ? 1 : 0) - impact.predictedCompletionProbability)
+  const bias = avg(deltas)
+  const label = bias > 0.12
+    ? 'underestimates resilience under pressure'
+    : bias < -0.12
+      ? 'overestimates reliability in high-motivation states'
+      : 'self-estimation is reasonably calibrated'
+
+  return {
+    selfEstimationBias: bias,
+    confidence: clamp01(0.28 + missionImpacts.length / 20),
+    summary: label,
+  }
+}
+
+function deriveRecursiveReflection(missionImpacts: MissionImpact[]) {
+  const recursiveHits = missionImpacts.filter((impact) => impact.recursiveReflectionDetected)
+  const confidence = clamp01(0.18 + recursiveHits.length / Math.max(4, missionImpacts.length))
+  return {
+    detected: recursiveHits.length > 0,
+    confidence,
+    detail: recursiveHits.length > 0
+      ? 'You are reflecting on prior reflection patterns, not just mission content.'
+      : 'Recursive reflection has not appeared strongly yet.',
+  }
+}
+
+function deriveAdaptationInsights(
+  profile: CognitiveProfile,
+  rhythms: BehavioralRhythm[],
+  recovery: RecoverySignature,
+  tensions: InternalTension[],
+  contextualTraits: { challengeTolerance: ContextualTraitMap; reflectionDepth: ContextualTraitMap },
+): AdaptationInsights {
+  return {
+    growthConditions: [
+      profile.consistency > 0.58 ? 'short daily cadence with fixed mission window' : 'low-friction re-entry missions with strict time caps',
+      contextualTraits.challengeTolerance.creative > contextualTraits.challengeTolerance.social
+        ? 'creative-first challenge ramp before social exposure'
+        : 'mixed-context challenge sequencing',
+    ],
+    fragmentationConditions: [
+      profile.emotionalVariance > 0.65 ? 'high volatility + high-pressure challenge stacking' : 'unbounded novelty with no completion guardrail',
+      tensions.length > 0 ? 'identity-behavior contradictions left unchallenged' : 'extended periods without anchors',
+    ],
+    survivingPatterns: [
+      profile.selfAwareness > 0.56 ? 'anchor-based self-observation persists across resets' : 'task completion persists better than introspective depth',
+      recovery.failureResponse === 'reset' ? 'structured recovery after failure' : `recovery defaults to ${recovery.failureResponse}`,
+    ],
+    adaptivePressure: rhythms
+      .filter((rhythm) => !rhythm.resultingPattern.includes('no strong'))
+      .map((rhythm) => `${rhythm.trigger} -> ${rhythm.resultingPattern}`),
+    avoidancePressure: [
+      profile.avoidance > 0.62 ? 'uncertainty-heavy prompts without scaffold' : 'late-session cognitive overload',
+      tensions[0]?.observedBehavior ?? 'low explicit contradiction pressure detected',
+    ],
+  }
 }
 
 function derivePatterns(profile: CognitiveProfile, anchors: MemoryAnchor[], history: ChallengeHistoryItem[]): CognitivePatterns {
@@ -422,6 +514,7 @@ export function computeCognitiveProfile(input: {
   history: ChallengeHistoryItem[]
   activeProtocol: ActiveProtocol | null
   behaviorSignals: TraitEvidence[]
+  missionImpacts: MissionImpact[]
   previousSnapshot?: CognitiveProfileSnapshot | null
 }) {
   const previous = input.previousSnapshot ?? readStoredSnapshot()
@@ -429,6 +522,7 @@ export function computeCognitiveProfile(input: {
   const recentHistory = input.history.slice(0, 40)
   const recentAnchors = input.anchors.slice(0, 30)
   const signals = input.behaviorSignals.slice(0, 80)
+  const missionImpacts = input.missionImpacts.slice(0, 120)
   const signalStats = {
     avoidance: buildSignalStats(signals, 'avoidance'),
     consistency: buildSignalStats(signals, 'consistency'),
@@ -563,7 +657,11 @@ export function computeCognitiveProfile(input: {
   const rhythms = deriveRhythms(recentEntries, recentHistory, profile)
   const recoverySignature = deriveRecoverySignature(recentHistory, recentEntries, profile)
   const currentState = deriveCurrentState(profile, recoverySignature)
-  const evolutionEvents = deriveEvolutionEvents(previous ?? null, profile, tensions, recoverySignature)
+  const latestImpact = missionImpacts[0] ?? null
+  const evolutionEvents = deriveEvolutionEvents(previous ?? null, profile, tensions, recoverySignature, latestImpact)
+  const metaAwareness = deriveMetaAwareness(missionImpacts)
+  const recursiveReflection = deriveRecursiveReflection(missionImpacts)
+  const adaptationInsights = deriveAdaptationInsights(profile, rhythms, recoverySignature, tensions, contextualTraits)
   const shadowPatterns = detectShadowPatterns(profile, patterns)
   return {
     computedAtUtc: new Date().toISOString(),
@@ -582,6 +680,10 @@ export function computeCognitiveProfile(input: {
     recoverySignature,
     currentState,
     evolutionEvents,
+    missionImpacts,
+    metaAwareness,
+    recursiveReflection,
+    adaptationInsights,
   } satisfies CognitiveProfileSnapshot
 }
 

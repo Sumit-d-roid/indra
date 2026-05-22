@@ -223,6 +223,30 @@ export function DashboardPage() {
               <p className="mt-1 text-sm text-slate-300">{profileSnapshot.evolutionEvents[profileSnapshot.evolutionEvents.length - 1]?.detail}</p>
             </div>
           ) : null}
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/10 p-4">
+              <p className="text-xs uppercase tracking-[0.28em] text-cyan-100/80">Meta awareness</p>
+              <p className="mt-2 text-sm text-slate-100">{profileSnapshot.metaAwareness.summary}</p>
+              <p className="mt-1 text-xs text-slate-300">
+                bias {profileSnapshot.metaAwareness.selfEstimationBias >= 0 ? '+' : ''}
+                {profileSnapshot.metaAwareness.selfEstimationBias.toFixed(2)} · confidence {Math.round(profileSnapshot.metaAwareness.confidence * 100)}%
+              </p>
+            </div>
+            <div className="rounded-2xl border border-violet-300/15 bg-violet-300/10 p-4">
+              <p className="text-xs uppercase tracking-[0.28em] text-violet-100/80">Recursive reflection</p>
+              <p className="mt-2 text-sm text-slate-100">{profileSnapshot.recursiveReflection.detail}</p>
+              <p className="mt-1 text-xs text-slate-300">confidence {Math.round(profileSnapshot.recursiveReflection.confidence * 100)}%</p>
+            </div>
+          </div>
+          {profileSnapshot.missionImpacts[0] ? (
+            <div className="mt-4 rounded-2xl border border-amber-300/15 bg-amber-300/10 p-4">
+              <p className="text-xs uppercase tracking-[0.28em] text-amber-100/80">Latest mission impact</p>
+              <p className="mt-2 text-sm text-slate-100">{profileSnapshot.missionImpacts[0].summary}</p>
+              <p className="mt-1 text-xs text-slate-300">
+                resistance {Math.round(profileSnapshot.missionImpacts[0].resistanceLevel * 100)}% · future avoidance {Math.round(profileSnapshot.missionImpacts[0].futureAvoidanceProbability * 100)}%
+              </p>
+            </div>
+          ) : null}
         </Panel>
       ) : null}
 

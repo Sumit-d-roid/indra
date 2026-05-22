@@ -209,6 +209,34 @@ export type EvolutionEvent = {
   createdAtUtc: string
 }
 
+export type MissionImpact = {
+  missionId: string
+  createdAtUtc: string
+  resistanceLevel: number
+  emotionalEffect: number
+  recoveryCost: number
+  confidenceShift: number
+  futureAvoidanceProbability: number
+  predictedCompletionProbability: number
+  actualCompleted: boolean
+  recursiveReflectionDetected: boolean
+  summary: string
+}
+
+export type MetaAwareness = {
+  selfEstimationBias: number
+  confidence: number
+  summary: string
+}
+
+export type AdaptationInsights = {
+  growthConditions: string[]
+  fragmentationConditions: string[]
+  survivingPatterns: string[]
+  adaptivePressure: string[]
+  avoidancePressure: string[]
+}
+
 export type CognitivePatterns = {
   curiosityStyle: string
   avoidanceStyle: string
@@ -263,4 +291,12 @@ export type CognitiveProfileSnapshot = {
   recoverySignature: RecoverySignature
   currentState: DynamicIdentityState
   evolutionEvents: EvolutionEvent[]
+  missionImpacts: MissionImpact[]
+  metaAwareness: MetaAwareness
+  recursiveReflection: {
+    detected: boolean
+    confidence: number
+    detail: string
+  }
+  adaptationInsights: AdaptationInsights
 }

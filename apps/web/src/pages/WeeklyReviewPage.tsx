@@ -235,6 +235,20 @@ export function WeeklyReviewPage() {
               <p className="mt-1 text-sm text-slate-300">{profileSnapshot.tensions[0].observedBehavior}</p>
             </div>
           ) : null}
+          <div className="mt-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/10 p-4">
+            <p className="text-xs uppercase tracking-[0.28em] text-cyan-100/80">Meta awareness</p>
+            <p className="mt-2 text-sm text-slate-100">{profileSnapshot.metaAwareness.summary}</p>
+            <p className="mt-1 text-xs text-slate-300">
+              bias {profileSnapshot.metaAwareness.selfEstimationBias >= 0 ? '+' : ''}
+              {profileSnapshot.metaAwareness.selfEstimationBias.toFixed(2)}
+            </p>
+          </div>
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Growth vs fragmentation conditions</p>
+            <p className="mt-2 text-sm text-slate-100">Growth: {profileSnapshot.adaptationInsights.growthConditions[0]}</p>
+            <p className="mt-1 text-sm text-slate-300">Fragmentation: {profileSnapshot.adaptationInsights.fragmentationConditions[0]}</p>
+            <p className="mt-1 text-sm text-slate-300">Surviving pattern: {profileSnapshot.adaptationInsights.survivingPatterns[0]}</p>
+          </div>
         </Panel>
       ) : null}
 

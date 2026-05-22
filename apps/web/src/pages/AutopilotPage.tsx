@@ -5,8 +5,9 @@ import { computeCognitiveProfile, getStoredCognitiveProfile, persistCognitivePro
 import { indraApi } from '../lib/api'
 import { listBehaviorSignals, recordBehaviorSignal } from '../lib/behaviorSignals'
 import { getLatestMemoryAnchor, listMemoryAnchors, saveMemoryAnchor } from '../lib/memoryAnchors'
+import { listMissionImpacts, recordMissionImpact } from '../lib/missionImpacts'
 import { getActiveProtocol, recordProtocolSession } from '../lib/protocols'
-import { interpretReflectionText } from '../lib/textSignals'
+import { detectRecursiveReflection, estimateSelfPredictionProbability, interpretReflectionText } from '../lib/textSignals'
 import type { ActiveProtocol, Challenge, ChallengeHistoryItem, CognitiveEntry, CognitiveProfileSnapshot, MemoryAnchor } from '../types'
 
 type Stage = 'mission' | 'challenge' | 'summary'
@@ -241,6 +242,7 @@ export function AutopilotPage() {
           history: challengeHistory,
           activeProtocol: storedProtocol,
           behaviorSignals: listBehaviorSignals(),
+          missionImpacts: listMissionImpacts(),
         })
         persistCognitiveProfile(snapshot)
         setProfileSnapshot(snapshot)
@@ -316,6 +318,8 @@ export function AutopilotPage() {
     setError(null)
     try {
       const reflectionSignals = interpretReflectionText(response.trim())
+      const predictedCompletionProbability = estimateSelfPredictionProbability(response.trim())
+      const recursiveReflection = detectRecursiveReflection(response.trim())
       const submitted = await indraApi.submitChallengeResponse(challenge.id, {
         responseText: response.trim(),
         reflectionDepth,
@@ -358,6 +362,19 @@ export function AutopilotPage() {
       setHistory(updatedHistory)
       const updatedProtocol = recordProtocolSession()
       setActiveProtocol(updatedProtocol)
+      recordMissionImpact({
+        missionId: challenge.id,
+        createdAtUtc: new Date().toISOString(),
+        resistanceLevel: 1 - reflectionSignals.depthScore + reflectionSignals.avoidanceScore * 0.4,
+        emotionalEffect: reflectionSignals.emotionalCharge - reflectionSignals.avoidanceScore * 0.25,
+        recoveryCost: Math.max(0, 1 - (profileSnapshot?.profile.consistency ?? 0.5)) + reflectionSignals.emotionalCharge * 0.35,
+        confidenceShift: reflectionSignals.selfAwarenessScore * 0.45 + reflectionSignals.depthScore * 0.35 - reflectionSignals.avoidanceScore * 0.2,
+        futureAvoidanceProbability: Math.min(1, reflectionSignals.avoidanceScore * 0.6 + Math.max(0, challenge.difficulty / 10 - reflectionSignals.depthScore * 0.35)),
+        predictedCompletionProbability,
+        actualCompleted: true,
+        recursiveReflectionDetected: recursiveReflection.detected,
+        summary: `Mission impact: resistance ${Math.round((1 - reflectionSignals.depthScore) * 100)}%, confidence shift ${Math.round((reflectionSignals.selfAwarenessScore - reflectionSignals.avoidanceScore) * 100)}%.`,
+      })
 
       const snapshot = computeCognitiveProfile({
         entries,
@@ -365,6 +382,7 @@ export function AutopilotPage() {
         history: updatedHistory,
         activeProtocol: updatedProtocol,
         behaviorSignals: listBehaviorSignals(),
+        missionImpacts: listMissionImpacts(),
         previousSnapshot: profileSnapshot,
       })
       persistCognitiveProfile(snapshot)
@@ -599,6 +617,8 @@ export function AutopilotPage() {
               <p>Protocol bias: <span className="text-slate-100">{profileSnapshot.patterns.protocolBias}</span></p>
               <p>Current state: <span className="text-slate-100">{profileSnapshot.currentState.replace(/-/g, ' ')}</span></p>
               {profileSnapshot.tensions[0] ? <p>Tension: <span className="text-slate-100">{profileSnapshot.tensions[0].observedBehavior}</span></p> : null}
+              <p>Meta-awareness: <span className="text-slate-100">{profileSnapshot.metaAwareness.summary}</span></p>
+              {profileSnapshot.missionImpacts[0] ? <p>Latest mission impact: <span className="text-slate-100">{profileSnapshot.missionImpacts[0].summary}</span></p> : null}
             </div>
           ) : (
             <p className="text-sm text-slate-300">Profile initializing from your recent data.</p>

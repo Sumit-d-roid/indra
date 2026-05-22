@@ -59,3 +59,25 @@ export function interpretEmotionText(text: string) {
     volatility: normalize(volatilityHits + negativeHits * 0.35, 4),
   }
 }
+
+export function estimateSelfPredictionProbability(text: string) {
+  const normalized = text.toLowerCase()
+  const lowConfidence = ['probably not', "won't", 'might fail', 'not sure i can', 'too hard', 'i may skip']
+  const highConfidence = ['i will finish', 'i can do this', 'definitely', 'i will complete', 'i can handle']
+  const lowHits = lowConfidence.reduce((sum, token) => sum + (normalized.includes(token) ? 1 : 0), 0)
+  const highHits = highConfidence.reduce((sum, token) => sum + (normalized.includes(token) ? 1 : 0), 0)
+  return Math.max(0.1, Math.min(0.95, 0.55 + highHits * 0.12 - lowHits * 0.14))
+}
+
+export function detectRecursiveReflection(text: string) {
+  const normalized = text.toLowerCase()
+  const introspection = ['i noticed', 'i realized', 'my pattern', 'my bias', 'i was avoiding', 'i was resisting']
+  const metaIntrospection = ['about my reflection', 'reflecting on that reflection', 'i intellectualized', 'meta pattern', 'pattern about pattern']
+  const introspectionHits = introspection.reduce((sum, token) => sum + (normalized.includes(token) ? 1 : 0), 0)
+  const metaHits = metaIntrospection.reduce((sum, token) => sum + (normalized.includes(token) ? 1 : 0), 0)
+  const detected = introspectionHits >= 2 && metaHits >= 1
+  return {
+    detected,
+    confidence: Math.max(0, Math.min(1, 0.22 + introspectionHits * 0.18 + metaHits * 0.32)),
+  }
+}

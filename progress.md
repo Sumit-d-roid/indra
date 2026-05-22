@@ -35,6 +35,10 @@
   - recovery signature model added (failure response type, latency, successful interventions).
   - dynamic identity states added and wired into mission adaptation and atmosphere context.
   - evolution events timeline added for breakthroughs, spikes, contradictions, and recovery milestones.
+  - meta-awareness layer added (self-estimation bias: predicted vs observed completion).
+  - mission impact model added (resistance, emotional effect, recovery cost, confidence shift, avoidance probability).
+  - recursive reflection detection added for meta-pattern awareness.
+  - synthesis layer added with explicit growth conditions, fragmentation conditions, surviving patterns, and pressure mapping.
 
 ## Notes
 - Web API base now defaults to same-origin `/api` with Vite proxy to backend for GitHub dev URL compatibility.
