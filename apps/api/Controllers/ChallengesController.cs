@@ -18,6 +18,16 @@ public sealed class ChallengesController(IChallengeService challengeService) : C
     public async Task<ActionResult<IReadOnlyCollection<ChallengeHistoryItem>>> History(CancellationToken cancellationToken) =>
         Ok(await challengeService.GetHistoryAsync(cancellationToken));
 
+    [HttpGet("archetypes")]
+    [ProducesResponseType<IReadOnlyCollection<ChallengeArchetypeItem>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyCollection<ChallengeArchetypeItem>>> Archetypes(CancellationToken cancellationToken) =>
+        Ok(await challengeService.GetArchetypesAsync(cancellationToken));
+
+    [HttpGet("analysis")]
+    [ProducesResponseType<MutationDiagnosticsResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<MutationDiagnosticsResponse>> Analysis(CancellationToken cancellationToken) =>
+        Ok(await challengeService.GetMutationAnalysisAsync(cancellationToken));
+
     [HttpPost("generate")]
     [ProducesResponseType<GeneratedChallengeResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult<GeneratedChallengeResponse>> Generate(GenerateChallengeRequest request, CancellationToken cancellationToken) =>

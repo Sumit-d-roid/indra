@@ -13,6 +13,61 @@ export type Challenge = {
   noveltyIndex: number
 }
 
+export type ChallengeHistoryItem = {
+  challengeId: string
+  title: string
+  category: string
+  isCompleted: boolean
+  reflectionDepth: number
+  createdAtUtc: string
+}
+
+export type ChallengeArchetype = {
+  category: string
+  structureSignature: string
+  pressureStyle: string
+  baseDifficulty: number
+  baseNovelty: number
+}
+
+export type CognitiveDiversityMetrics = {
+  categoryEntropy: number
+  categoryCoverage: number
+  structuralVariation: number
+  overSpecializationRisk: number
+  flexibilityIndex: number
+}
+
+export type MutationDiagnostics = {
+  repetitivePatterns: string[]
+  comfortZones: string[]
+  overSpecialized: boolean
+  noveltyScore: number
+  abstractionPressure: number
+  diversityMetrics: CognitiveDiversityMetrics
+  mutationDirective: string
+}
+
+export type GenerateChallengePayload = {
+  focusArea?: string
+  currentPattern?: string
+  preferredDifficulty?: number
+  noveltyTarget?: number
+  mutationIntensity?: number
+}
+
+export type SubmitChallengeResponsePayload = {
+  responseText: string
+  reflectionDepth: number
+  isCompleted: boolean
+}
+
+export type GeneratedChallenge = {
+  challenge: Challenge
+  generationRationale: string
+  diagnostics: MutationDiagnostics
+}
+
 export type Notification = {
   title: string
   detail: string

@@ -6,6 +6,8 @@ public interface IChallengeService
 {
     Task<IReadOnlyCollection<ChallengeResponseItem>> GetChallengesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyCollection<ChallengeHistoryItem>> GetHistoryAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<ChallengeArchetypeItem>> GetArchetypesAsync(CancellationToken cancellationToken = default);
+    Task<MutationDiagnosticsResponse> GetMutationAnalysisAsync(CancellationToken cancellationToken = default);
     Task<GeneratedChallengeResponse> GenerateAsync(GenerateChallengeRequest request, CancellationToken cancellationToken = default);
     Task<ChallengeHistoryItem?> SubmitResponseAsync(Guid challengeId, SubmitChallengeResponseRequest request, CancellationToken cancellationToken = default);
 }
