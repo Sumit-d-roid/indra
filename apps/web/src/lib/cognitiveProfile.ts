@@ -1,12 +1,18 @@
 import type {
   ActiveProtocol,
+  BehavioralRhythm,
   ChallengeHistoryItem,
+  ContextualTraitMap,
   CognitiveEntry,
+  DynamicIdentityState,
+  EvolutionEvent,
+  InternalTension,
   CognitivePatterns,
   CognitiveProfile,
   CognitiveProfileSnapshot,
   CognitiveTraitConfidence,
   MemoryAnchor,
+  RecoverySignature,
   TraitEvidence,
   TraitName,
 } from '../types'
@@ -37,6 +43,30 @@ function stdDev(values: number[]) {
 
 function normalize10(values: number[]) {
   return clamp01(avg(values) / 10)
+}
+
+function emptyContextualMap(): ContextualTraitMap {
+  return { creative: 0.5, social: 0.5, physical: 0.5, uncertainty: 0.5 }
+}
+
+function inferContextFromCategory(category: string): keyof ContextualTraitMap {
+  const normalized = category.toLowerCase()
+  if (normalized.includes('social') || normalized.includes('perspective')) return 'social'
+  if (normalized.includes('physical') || normalized.includes('embodied')) return 'physical'
+  if (normalized.includes('uncertainty') || normalized.includes('hypothetical')) return 'uncertainty'
+  return 'creative'
+}
+
+function weightedMean(values: Array<{ value: number; weight: number }>, fallback = 0.5) {
+  if (values.length === 0) {
+    return fallback
+  }
+  const totalWeight = values.reduce((sum, item) => sum + item.weight, 0)
+  if (totalWeight <= 0) {
+    return fallback
+  }
+  const total = values.reduce((sum, item) => sum + item.value * item.weight, 0)
+  return clamp01(total / totalWeight)
 }
 
 function recencyWeight(timestamp: string) {
@@ -71,6 +101,19 @@ function readStoredSnapshot() {
         dashboardEmphasis: parsed.patterns.dashboardEmphasis ?? 'controlled escalation of challenge depth',
       },
       shadowPatterns: Array.isArray(parsed.shadowPatterns) ? parsed.shadowPatterns : [],
+      contextualTraits: parsed.contextualTraits ?? {
+        challengeTolerance: emptyContextualMap(),
+        reflectionDepth: emptyContextualMap(),
+      },
+      tensions: Array.isArray(parsed.tensions) ? parsed.tensions : [],
+      rhythms: Array.isArray(parsed.rhythms) ? parsed.rhythms : [],
+      recoverySignature: parsed.recoverySignature ?? {
+        failureResponse: 'reset',
+        recoveryLatencyHours: 24,
+        successfulRecoveryInterventions: [],
+      },
+      currentState: parsed.currentState ?? 'stabilizing-recovery',
+      evolutionEvents: Array.isArray(parsed.evolutionEvents) ? parsed.evolutionEvents : [],
     }
   } catch {
     return null
@@ -152,6 +195,170 @@ function detectShadowPatterns(profile: CognitiveProfile, patterns: CognitivePatt
   }
 
   return shadows
+}
+
+function deriveContextualTraits(history: ChallengeHistoryItem[], signals: TraitEvidence[]) {
+  const challengeTolerance = emptyContextualMap()
+  const reflectionDepth = emptyContextualMap()
+  const contexts: Array<keyof ContextualTraitMap> = ['creative', 'social', 'physical', 'uncertainty']
+
+  for (const context of contexts) {
+    const contextualHistory = history.filter((item) => inferContextFromCategory(item.category) === context)
+    const contextualSignals = signals.filter((item) => item.context === context)
+
+    challengeTolerance[context] = weightedMean(
+      [
+        ...contextualHistory.map((item) => ({
+          value: item.isCompleted ? 0.7 + item.reflectionDepth / 20 : 0.25,
+          weight: 0.9,
+        })),
+        ...contextualSignals
+          .filter((item) => item.trait === 'challengeTolerance' || item.trait === 'avoidance')
+          .map((item) => ({
+            value: item.trait === 'challengeTolerance' ? item.weight : 1 - item.weight,
+            weight: 0.7 * (item.psychologicalWeight ?? 1),
+          })),
+      ],
+      0.5,
+    )
+
+    reflectionDepth[context] = weightedMean(
+      [
+        ...contextualHistory.map((item) => ({
+          value: clamp01(item.reflectionDepth / 10),
+          weight: 0.85,
+        })),
+        ...contextualSignals
+          .filter((item) => item.trait === 'reflectionDepth' || item.trait === 'selfAwareness')
+          .map((item) => ({
+            value: item.weight,
+            weight: 0.65 * (item.psychologicalWeight ?? 1),
+          })),
+      ],
+      0.5,
+    )
+  }
+
+  return { challengeTolerance, reflectionDepth }
+}
+
+function deriveTensions(profile: CognitiveProfile, contextualTraits: { challengeTolerance: ContextualTraitMap }): InternalTension[] {
+  const tensions: InternalTension[] = []
+  if (profile.noveltySeeking > 0.62 && profile.avoidance > 0.56) {
+    tensions.push({
+      declaredIdentity: 'I seek challenge and novelty.',
+      observedBehavior: 'Avoidance rises when uncertainty pressure increases.',
+      divergenceScore: clamp01((profile.noveltySeeking - 0.45) * (profile.avoidance + 0.1)),
+      recurringContexts: ['uncertainty', 'social'],
+    })
+  }
+  if (contextualTraits.challengeTolerance.creative - contextualTraits.challengeTolerance.social > 0.28) {
+    tensions.push({
+      declaredIdentity: 'I can handle difficult pressure.',
+      observedBehavior: 'Tolerance is strong in creative contexts but drops in social exposure.',
+      divergenceScore: clamp01(contextualTraits.challengeTolerance.creative - contextualTraits.challengeTolerance.social),
+      recurringContexts: ['social'],
+    })
+  }
+  return tensions
+}
+
+function deriveRhythms(entries: CognitiveEntry[], history: ChallengeHistoryItem[], profile: CognitiveProfile): BehavioralRhythm[] {
+  const rhythms: BehavioralRhythm[] = []
+  const sorted = [...entries].sort((a, b) => new Date(a.createdAtUtc).getTime() - new Date(b.createdAtUtc).getTime())
+  const latestThree = sorted.slice(-3)
+  const stressSlope = latestThree.length < 3 ? 0 : latestThree[2].stress - latestThree[0].stress
+  if (stressSlope >= 2 && profile.avoidance > 0.55) {
+    rhythms.push({
+      trigger: '3-check-in stress rise',
+      resultingPattern: 'avoidance increases and engagement narrows',
+      confidence: 0.66,
+    })
+  }
+  const misses = history.filter((item) => !item.isCompleted).length
+  if (misses >= 3) {
+    rhythms.push({
+      trigger: 'consecutive incomplete missions',
+      resultingPattern: 'passive preference + lower challenge tolerance',
+      confidence: clamp01(0.45 + misses / 10),
+    })
+  }
+  if (rhythms.length === 0) {
+    rhythms.push({
+      trigger: 'steady cadence',
+      resultingPattern: 'no strong destabilizing cycle detected',
+      confidence: 0.42,
+    })
+  }
+  return rhythms
+}
+
+function deriveRecoverySignature(history: ChallengeHistoryItem[], entries: CognitiveEntry[], profile: CognitiveProfile): RecoverySignature {
+  const failures = history
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => !item.isCompleted)
+  const recoveries = failures
+    .map(({ index, item }) => {
+      const nextSuccess = history.slice(index + 1).find((next) => next.isCompleted)
+      if (!nextSuccess) return null
+      const latencyHours = (new Date(nextSuccess.createdAtUtc).getTime() - new Date(item.createdAtUtc).getTime()) / 3_600_000
+      return latencyHours > 0 ? latencyHours : null
+    })
+    .filter((value): value is number => typeof value === 'number')
+
+  const recoveryLatencyHours = recoveries.length === 0 ? 24 : Math.max(1, avg(recoveries))
+  const failureResponse: RecoverySignature['failureResponse'] =
+    profile.avoidance > 0.7 ? 'withdraw'
+      : profile.noveltySeeking > 0.72 && profile.consistency < 0.45 ? 'spiral'
+        : profile.consistency > 0.62 ? 'reset'
+          : 'compensate'
+
+  const interventions = [
+    profile.consistency > 0.6 ? 'fixed-time short mission' : null,
+    profile.selfAwareness > 0.58 ? 'anchor-first reflection' : null,
+    entries.length >= 5 ? 'daily check-in continuity' : null,
+  ].filter((item): item is string => Boolean(item))
+
+  return {
+    failureResponse,
+    recoveryLatencyHours,
+    successfulRecoveryInterventions: interventions,
+  }
+}
+
+function deriveCurrentState(profile: CognitiveProfile, recovery: RecoverySignature): DynamicIdentityState {
+  if (profile.consistency < 0.4 && profile.avoidance > 0.65) return 'withdrawal-loop'
+  if (profile.noveltySeeking > 0.72 && profile.consistency < 0.5) return 'fragmented-explorer'
+  if (profile.challengeTolerance > 0.72 && profile.emotionalVariance > 0.62) return 'overextended-performer'
+  if (recovery.failureResponse === 'reset' && profile.consistency > 0.55) return 'stabilizing-recovery'
+  return 'exploratory-growth'
+}
+
+function deriveEvolutionEvents(
+  previous: CognitiveProfileSnapshot | null,
+  profile: CognitiveProfile,
+  tensions: InternalTension[],
+  recovery: RecoverySignature,
+): EvolutionEvent[] {
+  const events = [...(previous?.evolutionEvents ?? [])]
+  const prev = previous?.profile
+  const pushEvent = (title: string, detail: string, impact: number) => {
+    events.push({ title, detail, impact, createdAtUtc: new Date().toISOString() })
+  }
+
+  if (prev && profile.challengeTolerance - prev.challengeTolerance > 0.08) {
+    pushEvent('Challenge tolerance breakthrough', 'You increased challenge tolerance within the latest adaptation window.', 0.78)
+  }
+  if (prev && profile.avoidance - prev.avoidance > 0.08) {
+    pushEvent('Avoidance spike detected', 'Avoidance rose sharply; recovery pacing needs stronger guardrails.', 0.64)
+  }
+  if (tensions.length > 0 && tensions[0].divergenceScore > 0.35) {
+    pushEvent('Identity-behavior contradiction surfaced', tensions[0].observedBehavior, 0.71)
+  }
+  if (recovery.recoveryLatencyHours < 18) {
+    pushEvent('Fast recovery milestone', 'You recovered from failure faster than your baseline window.', 0.69)
+  }
+  return events.slice(-30)
 }
 
 function derivePatterns(profile: CognitiveProfile, anchors: MemoryAnchor[], history: ChallengeHistoryItem[]): CognitivePatterns {
@@ -350,11 +557,18 @@ export function computeCognitiveProfile(input: {
     { timestamp: new Date().toISOString(), profile },
   ].slice(-120)
 
+  const contextualTraits = deriveContextualTraits(recentHistory, signals)
+  const tensions = deriveTensions(profile, contextualTraits)
   const patterns = derivePatterns(profile, recentAnchors, recentHistory)
+  const rhythms = deriveRhythms(recentEntries, recentHistory, profile)
+  const recoverySignature = deriveRecoverySignature(recentHistory, recentEntries, profile)
+  const currentState = deriveCurrentState(profile, recoverySignature)
+  const evolutionEvents = deriveEvolutionEvents(previous ?? null, profile, tensions, recoverySignature)
   const shadowPatterns = detectShadowPatterns(profile, patterns)
   return {
     computedAtUtc: new Date().toISOString(),
     profile,
+    contextualTraits,
     confidence,
     evidence: TRAITS.reduce((acc, trait) => {
       acc[trait] = evidence[trait].slice(0, 6)
@@ -363,6 +577,11 @@ export function computeCognitiveProfile(input: {
     history,
     patterns,
     shadowPatterns,
+    tensions,
+    rhythms,
+    recoverySignature,
+    currentState,
+    evolutionEvents,
   } satisfies CognitiveProfileSnapshot
 }
 

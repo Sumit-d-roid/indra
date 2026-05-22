@@ -165,6 +165,26 @@ export function DashboardPage() {
           <p className="mt-2 text-sm text-cyan-100">
             Current emphasis: {profileSnapshot.patterns.dashboardEmphasis}.
           </p>
+          <p className="mt-2 text-sm text-amber-100">
+            Current state: {profileSnapshot.currentState.replace(/-/g, ' ')}.
+          </p>
+          <div className="mt-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/10 p-4">
+            <p className="text-xs uppercase tracking-[0.28em] text-cyan-100/80">Contextual tolerance</p>
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
+              {Object.entries(profileSnapshot.contextualTraits.challengeTolerance).map(([domain, value]) => (
+                <div key={domain} className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm">
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-300">{domain}</p>
+                  <p className="mt-1 text-slate-100">{Math.round(value * 100)}%</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          {profileSnapshot.tensions.length > 0 ? (
+            <div className="mt-4 rounded-2xl border border-amber-300/15 bg-amber-300/10 p-4">
+              <p className="text-xs uppercase tracking-[0.28em] text-amber-100/80">Internal tension</p>
+              <p className="mt-2 text-sm text-slate-100">{profileSnapshot.tensions[0].observedBehavior}</p>
+            </div>
+          ) : null}
           <div className="mt-4 rounded-2xl border border-violet-300/15 bg-violet-300/10 p-4">
             <p className="text-xs uppercase tracking-[0.28em] text-violet-100/80">Why INDRA believes this</p>
             <div className="mt-3 space-y-2 text-sm text-slate-200">
@@ -196,6 +216,13 @@ export function DashboardPage() {
               ))}
             </div>
           </div>
+          {profileSnapshot.evolutionEvents.length > 0 ? (
+            <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-300/10 p-4">
+              <p className="text-xs uppercase tracking-[0.28em] text-emerald-100/80">Latest evolution event</p>
+              <p className="mt-2 text-sm text-slate-100">{profileSnapshot.evolutionEvents[profileSnapshot.evolutionEvents.length - 1]?.title}</p>
+              <p className="mt-1 text-sm text-slate-300">{profileSnapshot.evolutionEvents[profileSnapshot.evolutionEvents.length - 1]?.detail}</p>
+            </div>
+          ) : null}
         </Panel>
       ) : null}
 

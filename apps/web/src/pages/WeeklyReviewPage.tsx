@@ -214,6 +214,27 @@ export function WeeklyReviewPage() {
               ))}
             </div>
           </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-cyan-300/15 bg-cyan-300/10 p-4">
+              <p className="text-xs uppercase tracking-[0.28em] text-cyan-100/80">Recovery signature</p>
+              <p className="mt-2 text-sm text-slate-100">
+                Response: {profileSnapshot.recoverySignature.failureResponse} · latency {Math.round(profileSnapshot.recoverySignature.recoveryLatencyHours)}h
+              </p>
+            </div>
+            <div className="rounded-2xl border border-amber-300/15 bg-amber-300/10 p-4">
+              <p className="text-xs uppercase tracking-[0.28em] text-amber-100/80">Behavioral rhythm</p>
+              <p className="mt-2 text-sm text-slate-100">
+                {profileSnapshot.rhythms[0]?.trigger}: {profileSnapshot.rhythms[0]?.resultingPattern}
+              </p>
+            </div>
+          </div>
+          {profileSnapshot.tensions.length > 0 ? (
+            <div className="mt-4 rounded-2xl border border-violet-300/15 bg-violet-300/10 p-4">
+              <p className="text-xs uppercase tracking-[0.28em] text-violet-100/80">Contradiction model</p>
+              <p className="mt-2 text-sm text-slate-100">{profileSnapshot.tensions[0].declaredIdentity}</p>
+              <p className="mt-1 text-sm text-slate-300">{profileSnapshot.tensions[0].observedBehavior}</p>
+            </div>
+          ) : null}
         </Panel>
       ) : null}
 

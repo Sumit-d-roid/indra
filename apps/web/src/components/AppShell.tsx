@@ -134,6 +134,11 @@ export function AppShell() {
                 ? `Profile mode: ${patterns.curiosityStyle}; ${patterns.avoidanceStyle}.${topShadow ? ` Shadow watch: ${topShadow.title}.` : ''}`
                 : 'Local observer mode active. No login required while you iterate on cognition loops and challenge quality.'}
             </p>
+            {profileSnapshot?.currentState ? (
+              <p className="mt-2 text-xs uppercase tracking-[0.24em] text-violet-100/70">
+                state: {profileSnapshot.currentState.replace(/-/g, ' ')}
+              </p>
+            ) : null}
           </div>
         </aside>
 

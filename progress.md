@@ -29,6 +29,12 @@
   - shadow pattern detection added with risk severity and mitigation detail.
   - protocol generation now profile-biased (consistency-first, tolerance-building, depth-expansion).
   - reflection prompts now adapt directly from inferred profile patterns.
+  - contradiction modeling added (declared identity vs observed behavior) with divergence scoring.
+  - contextual domain traits added for challenge tolerance/reflection depth (creative/social/physical/uncertainty).
+  - temporal intelligence added through behavioral rhythms and trigger-pattern confidence.
+  - recovery signature model added (failure response type, latency, successful interventions).
+  - dynamic identity states added and wired into mission adaptation and atmosphere context.
+  - evolution events timeline added for breakthroughs, spikes, contradictions, and recovery milestones.
 
 ## Notes
 - Web API base now defaults to same-origin `/api` with Vite proxy to backend for GitHub dev URL compatibility.

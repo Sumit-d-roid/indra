@@ -77,12 +77,16 @@ export function CheckInPage() {
         source: 'checkin',
         signal: `daily check-in saved with focus ${form.focusLevel}/10 and stress ${form.stress}/10`,
         weight: 0.64,
+        context: 'creative',
+        psychologicalWeight: 0.45,
       })
       recordBehaviorSignal({
         trait: 'emotionalVariance',
         source: 'checkin',
         signal: `emotional state "${form.emotionalState}" volatility ${emotion.volatility.toFixed(2)}`,
         weight: 0.52 + emotion.volatility * 0.36,
+        context: 'social',
+        psychologicalWeight: 0.52,
       })
       if (gapDays !== null) {
         recordBehaviorSignal({
@@ -90,6 +94,8 @@ export function CheckInPage() {
           source: 'checkin',
           signal: `check-in gap ${gapDays.toFixed(1)} days`,
           weight: gapDays <= 1.5 ? 0.74 : 0.42,
+          context: 'creative',
+          psychologicalWeight: 0.38,
         })
       }
       setStatus('Scan saved.')

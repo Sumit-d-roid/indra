@@ -18,6 +18,7 @@ import type {
 const simulatedLatency = async () => new Promise((resolve) => window.setTimeout(resolve, 320))
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '')
 const apiMode = (import.meta.env.VITE_API_MODE ?? 'live').toLowerCase()
+const COGNITIVE_ENTRIES_STORAGE_KEY = 'indra.cognitiveEntries.v1'
 
 type GenerateChallengeRequest = {
   focusArea?: string
@@ -91,6 +92,53 @@ function pickFallbackChallenge(preferredDifficulty?: number) {
   return [...challengePool].sort(
     (a, b) => Math.abs(a.difficulty - preferredDifficulty) - Math.abs(b.difficulty - preferredDifficulty),
   )[0]
+}
+
+function readStoredCognitiveEntries() {
+  if (typeof window === 'undefined') {
+    return []
+  }
+  const payload = window.localStorage.getItem(COGNITIVE_ENTRIES_STORAGE_KEY)
+  if (!payload) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(payload) as unknown
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+    return parsed
+      .filter((item): item is CognitiveEntry => {
+        return (
+          typeof item === 'object' &&
+          item !== null &&
+          typeof item.id === 'string' &&
+          typeof item.createdAtUtc === 'string' &&
+          typeof item.sleepQuality === 'number' &&
+          typeof item.focusLevel === 'number' &&
+          typeof item.curiosityLevel === 'number' &&
+          typeof item.energy === 'number' &&
+          typeof item.mood === 'number' &&
+          typeof item.mentalSharpness === 'number' &&
+          typeof item.creativity === 'number' &&
+          typeof item.stress === 'number' &&
+          typeof item.motivation === 'number' &&
+          typeof item.intellectualExcitement === 'number' &&
+          typeof item.emotionalState === 'string'
+        )
+      })
+      .sort((a, b) => b.createdAtUtc.localeCompare(a.createdAtUtc))
+  } catch {
+    return []
+  }
+}
+
+function writeStoredCognitiveEntries(entries: CognitiveEntry[]) {
+  if (typeof window === 'undefined') {
+    return
+  }
+  window.localStorage.setItem(COGNITIVE_ENTRIES_STORAGE_KEY, JSON.stringify(entries))
 }
 
 export const indraApi = {
@@ -182,15 +230,29 @@ export const indraApi = {
       async () => request<CognitiveEntry[]>('/cognitive-entries'),
       async () => {
         await simulatedLatency()
-        return []
+        return readStoredCognitiveEntries()
       },
     )
   },
   async createCognitiveEntry(payload: CognitiveEntryInput) {
-    return request<CognitiveEntry>('/cognitive-entries', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
+    return withFallback(
+      async () =>
+        request<CognitiveEntry>('/cognitive-entries', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        }),
+      async () => {
+        await simulatedLatency()
+        const created: CognitiveEntry = {
+          id: crypto.randomUUID(),
+          createdAtUtc: new Date().toISOString(),
+          ...payload,
+        }
+        const existing = readStoredCognitiveEntries()
+        writeStoredCognitiveEntries([created, ...existing].slice(0, 300))
+        return created
+      },
+    )
   },
   async getCognitiveTemplate() {
     await simulatedLatency()

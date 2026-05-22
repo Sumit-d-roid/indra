@@ -169,6 +169,46 @@ export type CognitiveProfile = {
   selfAwareness: number
 }
 
+export type ContextualTraitMap = {
+  creative: number
+  social: number
+  physical: number
+  uncertainty: number
+}
+
+export type InternalTension = {
+  declaredIdentity: string
+  observedBehavior: string
+  divergenceScore: number
+  recurringContexts: string[]
+}
+
+export type BehavioralRhythm = {
+  trigger: string
+  resultingPattern: string
+  confidence: number
+}
+
+export type RecoverySignature = {
+  failureResponse: 'withdraw' | 'compensate' | 'spiral' | 'reset'
+  recoveryLatencyHours: number
+  successfulRecoveryInterventions: string[]
+}
+
+export type DynamicIdentityState =
+  | 'exploratory-growth'
+  | 'overextended-performer'
+  | 'fragmented-explorer'
+  | 'withdrawal-loop'
+  | 'stabilizing-recovery'
+
+export type EvolutionEvent = {
+  title: string
+  detail: string
+  impact: number
+  createdAtUtc: string
+}
+
 export type CognitivePatterns = {
   curiosityStyle: string
   avoidanceStyle: string
@@ -193,6 +233,8 @@ export type TraitEvidence = {
   weight: number
   timestamp: string
   source: 'mission' | 'checkin' | 'journal'
+  context?: keyof ContextualTraitMap
+  psychologicalWeight?: number
 }
 
 export type CognitiveTraitConfidence = Record<TraitName, number>
@@ -200,6 +242,10 @@ export type CognitiveTraitConfidence = Record<TraitName, number>
 export type CognitiveProfileSnapshot = {
   computedAtUtc: string
   profile: CognitiveProfile
+  contextualTraits: {
+    challengeTolerance: ContextualTraitMap
+    reflectionDepth: ContextualTraitMap
+  }
   confidence: CognitiveTraitConfidence
   evidence: Record<TraitName, TraitEvidence[]>
   history: Array<{
@@ -212,4 +258,9 @@ export type CognitiveProfileSnapshot = {
     severity: 'low' | 'medium' | 'high'
     detail: string
   }>
+  tensions: InternalTension[]
+  rhythms: BehavioralRhythm[]
+  recoverySignature: RecoverySignature
+  currentState: DynamicIdentityState
+  evolutionEvents: EvolutionEvent[]
 }

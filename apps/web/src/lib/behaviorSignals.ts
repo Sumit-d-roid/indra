@@ -25,7 +25,9 @@ function readRaw() {
         typeof item.signal === 'string' &&
         typeof item.weight === 'number' &&
         typeof item.timestamp === 'string' &&
-        (item.source === 'mission' || item.source === 'checkin' || item.source === 'journal')
+        (item.source === 'mission' || item.source === 'checkin' || item.source === 'journal') &&
+        (typeof item.context === 'undefined' || item.context === 'creative' || item.context === 'social' || item.context === 'physical' || item.context === 'uncertainty') &&
+        (typeof item.psychologicalWeight === 'undefined' || typeof item.psychologicalWeight === 'number')
       )
     })
   } catch {

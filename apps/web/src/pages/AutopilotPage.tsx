@@ -42,10 +42,13 @@ function createMission(
 ): MissionPlan {
   const profile = snapshot?.profile
   const patterns = snapshot?.patterns
+  const currentState = snapshot?.currentState
+  const topTension = snapshot?.tensions[0]
   const focusFromAnchor = latestAnchor ? inferFocusFromBias(latestAnchor.biasSpotted) : null
+  const uncertaintyTolerance = snapshot?.contextualTraits.challengeTolerance.uncertainty ?? 0.5
 
   const preferredDifficulty = profile
-    ? clampNumber(Math.round(2 + profile.challengeTolerance * 5 + profile.consistency * 2 - profile.avoidance * 2), 1, 10)
+    ? clampNumber(Math.round(2 + profile.challengeTolerance * 5 + profile.consistency * 2 - profile.avoidance * 2 + (uncertaintyTolerance - 0.5) * 2), 1, 10)
     : 3
 
   const reflectionDepth = profile
@@ -78,12 +81,25 @@ function createMission(
       reason: latestAnchor
         ? `No recent check-in found, so we adapt from your last bias: "${latestAnchor.biasSpotted}".`
         : 'No recent check-in found, so this mission establishes current baseline.',
-      focusArea: focusFromAnchor ?? patterns?.curiosityStyle.includes('explor') ? 'systems thinking' : 'abstract reasoning',
+      focusArea: focusFromAnchor ?? (patterns?.curiosityStyle.includes('explor') ? 'systems thinking' : 'abstract reasoning'),
       preferredDifficulty,
       reflectionDepth,
       wordingMode,
       pacingHint,
       atmosphereTag,
+    }
+  }
+
+  if (topTension && topTension.divergenceScore > 0.35) {
+    return {
+      objective: 'Confront declared identity vs observed pattern in one concrete action',
+      reason: `Detected tension: ${topTension.observedBehavior}`,
+      focusArea: focusFromAnchor ?? 'uncertainty exposure',
+      preferredDifficulty: clampNumber(preferredDifficulty, 2, 8),
+      reflectionDepth,
+      wordingMode: 'direct',
+      pacingHint,
+      atmosphereTag: currentState === 'withdrawal-loop' ? 'stabilizing' : atmosphereTag,
     }
   }
 
@@ -271,6 +287,8 @@ export function AutopilotPage() {
         source: 'mission',
         signal: 'challenge reroll before completion',
         weight: 0.55,
+        context: challenge ? (challenge.category.toLowerCase().includes('uncertain') ? 'uncertainty' : 'creative') : 'creative',
+        psychologicalWeight: clampNumber((challenge?.difficulty ?? mission.preferredDifficulty) / 10, 0.25, 1),
       })
       const generated = await indraApi.generateChallenge({
         focusArea: mission.focusArea,
@@ -308,24 +326,32 @@ export function AutopilotPage() {
         source: 'mission',
         signal: `mission completed at reflection depth ${reflectionDepth}`,
         weight: 0.78,
+        context: challenge.category.toLowerCase().includes('perspective') ? 'social' : challenge.category.toLowerCase().includes('hypothetical') ? 'uncertainty' : 'creative',
+        psychologicalWeight: clampNumber((challenge.difficulty + challenge.noveltyIndex * 10) / 20, 0.3, 1),
       })
       recordBehaviorSignal({
         trait: 'reflectionDepth',
         source: 'mission',
         signal: `response depth score ${reflectionSignals.depthScore.toFixed(2)} with ${reflectionSignals.tokenCount} tokens`,
         weight: 0.48 + reflectionSignals.depthScore * 0.45,
+        context: challenge.category.toLowerCase().includes('perspective') ? 'social' : 'creative',
+        psychologicalWeight: clampNumber(challenge.difficulty / 10, 0.3, 1),
       })
       recordBehaviorSignal({
         trait: 'noveltySeeking',
         source: 'mission',
         signal: `response novelty score ${reflectionSignals.noveltyScore.toFixed(2)}`,
         weight: 0.42 + reflectionSignals.noveltyScore * 0.42,
+        context: challenge.category.toLowerCase().includes('hypothetical') ? 'uncertainty' : 'creative',
+        psychologicalWeight: clampNumber(challenge.noveltyIndex, 0.25, 1),
       })
       recordBehaviorSignal({
         trait: 'avoidance',
         source: 'mission',
         signal: `response avoidance cue score ${reflectionSignals.avoidanceScore.toFixed(2)}`,
         weight: 0.35 + reflectionSignals.avoidanceScore * 0.5,
+        context: challenge.category.toLowerCase().includes('perspective') ? 'social' : 'uncertainty',
+        psychologicalWeight: clampNumber(challenge.difficulty / 10, 0.3, 1),
       })
 
       const updatedHistory = [submitted, ...history]
@@ -377,6 +403,8 @@ export function AutopilotPage() {
       source: 'journal',
       signal: `saved anchor with bias "${anchorBias.trim()}"`,
       weight: 0.72,
+      context: mission.focusArea.toLowerCase().includes('perspective') ? 'social' : 'creative',
+      psychologicalWeight: clampNumber(mission.preferredDifficulty / 10, 0.25, 1),
     })
     const anchorSignals = interpretReflectionText(`${anchorInsight}. ${anchorBias}. ${anchorProbe}`)
     recordBehaviorSignal({
@@ -569,6 +597,8 @@ export function AutopilotPage() {
               <p>Recovery latency: <span className="text-slate-100">{profileSnapshot.patterns.recoveryLatency}</span></p>
               <p>Reflection prompt: <span className="text-slate-100">{profileSnapshot.patterns.reflectionPrompt}</span></p>
               <p>Protocol bias: <span className="text-slate-100">{profileSnapshot.patterns.protocolBias}</span></p>
+              <p>Current state: <span className="text-slate-100">{profileSnapshot.currentState.replace(/-/g, ' ')}</span></p>
+              {profileSnapshot.tensions[0] ? <p>Tension: <span className="text-slate-100">{profileSnapshot.tensions[0].observedBehavior}</span></p> : null}
             </div>
           ) : (
             <p className="text-sm text-slate-300">Profile initializing from your recent data.</p>
