@@ -162,6 +162,9 @@ export function DashboardPage() {
           <p className="mt-4 text-sm text-slate-300">
             Current mode: {profileSnapshot.patterns.curiosityStyle}, {profileSnapshot.patterns.challengeTolerance}.
           </p>
+          <p className="mt-2 text-sm text-cyan-100">
+            Current emphasis: {profileSnapshot.patterns.dashboardEmphasis}.
+          </p>
           <div className="mt-4 rounded-2xl border border-violet-300/15 bg-violet-300/10 p-4">
             <p className="text-xs uppercase tracking-[0.28em] text-violet-100/80">Why INDRA believes this</p>
             <div className="mt-3 space-y-2 text-sm text-slate-200">
@@ -178,6 +181,19 @@ export function DashboardPage() {
                     </p>
                   </div>
                 ))}
+            </div>
+          </div>
+          <div className="mt-4 rounded-2xl border border-rose-300/15 bg-rose-300/10 p-4">
+            <p className="text-xs uppercase tracking-[0.28em] text-rose-100/80">Shadow detection</p>
+            <div className="mt-3 space-y-2 text-sm text-slate-200">
+              {(profileSnapshot.shadowPatterns ?? []).slice(0, 2).map((shadow) => (
+                <div key={shadow.title} className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-300">
+                    {shadow.severity} risk · {shadow.title}
+                  </p>
+                  <p className="mt-1 text-slate-100">{shadow.detail}</p>
+                </div>
+              ))}
             </div>
           </div>
         </Panel>

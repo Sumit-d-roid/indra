@@ -180,6 +180,9 @@ export type CognitivePatterns = {
   noveltyDecay: string
   reflectionPattern: string
   selfDeceptionPattern: string
+  reflectionPrompt: string
+  protocolBias: string
+  dashboardEmphasis: string
 }
 
 export type TraitName = keyof CognitiveProfile
@@ -204,4 +207,9 @@ export type CognitiveProfileSnapshot = {
     profile: CognitiveProfile
   }>
   patterns: CognitivePatterns
+  shadowPatterns: Array<{
+    title: string
+    severity: 'low' | 'medium' | 'high'
+    detail: string
+  }>
 }

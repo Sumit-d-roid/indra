@@ -6,6 +6,7 @@ import { indraApi } from '../lib/api'
 import { listBehaviorSignals, recordBehaviorSignal } from '../lib/behaviorSignals'
 import { getLatestMemoryAnchor, listMemoryAnchors, saveMemoryAnchor } from '../lib/memoryAnchors'
 import { getActiveProtocol, recordProtocolSession } from '../lib/protocols'
+import { interpretReflectionText } from '../lib/textSignals'
 import type { ActiveProtocol, Challenge, ChallengeHistoryItem, CognitiveEntry, CognitiveProfileSnapshot, MemoryAnchor } from '../types'
 
 type Stage = 'mission' | 'challenge' | 'summary'
@@ -181,7 +182,9 @@ export function AutopilotPage() {
   )
 
   const missionTonePlaceholder =
-    mission.wordingMode === 'direct'
+    profileSnapshot?.patterns.reflectionPrompt
+      ? `${profileSnapshot.patterns.reflectionPrompt} Keep it under 220 words.`
+      : mission.wordingMode === 'direct'
       ? 'Write concise reasoning: claim, evidence, counterpoint, revised claim.'
       : mission.wordingMode === 'abstract'
         ? 'Write your response, then invert one assumption and re-synthesize at a higher abstraction level.'
@@ -294,6 +297,7 @@ export function AutopilotPage() {
     setBusy(true)
     setError(null)
     try {
+      const reflectionSignals = interpretReflectionText(response.trim())
       const submitted = await indraApi.submitChallengeResponse(challenge.id, {
         responseText: response.trim(),
         reflectionDepth,
@@ -304,6 +308,24 @@ export function AutopilotPage() {
         source: 'mission',
         signal: `mission completed at reflection depth ${reflectionDepth}`,
         weight: 0.78,
+      })
+      recordBehaviorSignal({
+        trait: 'reflectionDepth',
+        source: 'mission',
+        signal: `response depth score ${reflectionSignals.depthScore.toFixed(2)} with ${reflectionSignals.tokenCount} tokens`,
+        weight: 0.48 + reflectionSignals.depthScore * 0.45,
+      })
+      recordBehaviorSignal({
+        trait: 'noveltySeeking',
+        source: 'mission',
+        signal: `response novelty score ${reflectionSignals.noveltyScore.toFixed(2)}`,
+        weight: 0.42 + reflectionSignals.noveltyScore * 0.42,
+      })
+      recordBehaviorSignal({
+        trait: 'avoidance',
+        source: 'mission',
+        signal: `response avoidance cue score ${reflectionSignals.avoidanceScore.toFixed(2)}`,
+        weight: 0.35 + reflectionSignals.avoidanceScore * 0.5,
       })
 
       const updatedHistory = [submitted, ...history]
@@ -355,6 +377,13 @@ export function AutopilotPage() {
       source: 'journal',
       signal: `saved anchor with bias "${anchorBias.trim()}"`,
       weight: 0.72,
+    })
+    const anchorSignals = interpretReflectionText(`${anchorInsight}. ${anchorBias}. ${anchorProbe}`)
+    recordBehaviorSignal({
+      trait: 'selfAwareness',
+      source: 'journal',
+      signal: `anchor introspection score ${anchorSignals.selfAwarenessScore.toFixed(2)}`,
+      weight: 0.44 + anchorSignals.selfAwarenessScore * 0.48,
     })
     setLatestAnchor(stored)
     setAnchorSaved(true)
@@ -538,6 +567,8 @@ export function AutopilotPage() {
               <p>Avoidance style: <span className="text-slate-100">{profileSnapshot.patterns.avoidanceStyle}</span></p>
               <p>Challenge tolerance: <span className="text-slate-100">{profileSnapshot.patterns.challengeTolerance}</span></p>
               <p>Recovery latency: <span className="text-slate-100">{profileSnapshot.patterns.recoveryLatency}</span></p>
+              <p>Reflection prompt: <span className="text-slate-100">{profileSnapshot.patterns.reflectionPrompt}</span></p>
+              <p>Protocol bias: <span className="text-slate-100">{profileSnapshot.patterns.protocolBias}</span></p>
             </div>
           ) : (
             <p className="text-sm text-slate-300">Profile initializing from your recent data.</p>

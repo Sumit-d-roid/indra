@@ -12,6 +12,7 @@ import type {
 } from '../types'
 
 const STORAGE_KEY = 'indra.cognitiveProfile.v1'
+const DAY_MS = 86_400_000
 const TRAITS: TraitName[] = [
   'avoidance',
   'consistency',
@@ -38,6 +39,14 @@ function normalize10(values: number[]) {
   return clamp01(avg(values) / 10)
 }
 
+function recencyWeight(timestamp: string) {
+  const ageDays = (Date.now() - new Date(timestamp).getTime()) / DAY_MS
+  if (Number.isNaN(ageDays)) {
+    return 0.5
+  }
+  return clamp01(1 - ageDays / 30)
+}
+
 function readStoredSnapshot() {
   if (typeof window === 'undefined') {
     return null
@@ -53,7 +62,16 @@ function readStoredSnapshot() {
     if (!parsed?.profile || !parsed?.patterns || !parsed?.confidence || !parsed?.evidence || !Array.isArray(parsed?.history)) {
       return null
     }
-    return parsed
+    return {
+      ...parsed,
+      patterns: {
+        ...parsed.patterns,
+        reflectionPrompt: parsed.patterns.reflectionPrompt ?? 'Write claim → evidence → counterpoint in three short blocks.',
+        protocolBias: parsed.patterns.protocolBias ?? 'consistency-first protocol',
+        dashboardEmphasis: parsed.patterns.dashboardEmphasis ?? 'controlled escalation of challenge depth',
+      },
+      shadowPatterns: Array.isArray(parsed.shadowPatterns) ? parsed.shadowPatterns : [],
+    }
   } catch {
     return null
   }
@@ -91,6 +109,51 @@ function summarizeBias(anchors: MemoryAnchor[]) {
   }
 }
 
+function buildSignalStats(signals: TraitEvidence[], trait: TraitName) {
+  const relevant = signals.filter((signal) => signal.trait === trait)
+  const weighted = relevant.map((signal) => signal.weight * (0.65 + recencyWeight(signal.timestamp) * 0.35))
+  return {
+    count: relevant.length,
+    weightedAvg: weighted.length === 0 ? 0.5 : clamp01(avg(weighted)),
+    topSignals: [...relevant].sort((a, b) => b.weight - a.weight).slice(0, 3),
+  }
+}
+
+function detectShadowPatterns(profile: CognitiveProfile, patterns: CognitivePatterns) {
+  const shadows: CognitiveProfileSnapshot['shadowPatterns'] = []
+
+  if (profile.avoidance > 0.68 && profile.selfAwareness < 0.48) {
+    shadows.push({
+      title: 'Narrative avoidance loop',
+      severity: 'high',
+      detail: 'Avoidance is elevated while self-awareness is low. The system may default to rationalized delay.',
+    })
+  }
+  if (profile.noveltySeeking > 0.76 && profile.consistency < 0.44) {
+    shadows.push({
+      title: 'Novelty escape cycle',
+      severity: 'medium',
+      detail: 'Novelty appetite is outrunning consistency, risking exploration without integration.',
+    })
+  }
+  if (profile.challengeTolerance > 0.7 && profile.emotionalVariance > 0.66) {
+    shadows.push({
+      title: 'Overextension risk',
+      severity: 'medium',
+      detail: 'High challenge pressure with volatile emotional rhythm can trigger sharp recovery dips.',
+    })
+  }
+  if (shadows.length === 0) {
+    shadows.push({
+      title: 'No dominant shadow lock',
+      severity: 'low',
+      detail: `Current profile looks adaptable. Keep pressure balanced with ${patterns.recoveryLatency} recovery pacing.`,
+    })
+  }
+
+  return shadows
+}
+
 function derivePatterns(profile: CognitiveProfile, anchors: MemoryAnchor[], history: ChallengeHistoryItem[]): CognitivePatterns {
   const { repeatedBiasText } = summarizeBias(anchors)
   const topCategory = history.length === 0
@@ -108,6 +171,13 @@ function derivePatterns(profile: CognitiveProfile, anchors: MemoryAnchor[], hist
     noveltyDecay: profile.noveltySeeking > 0.68 && profile.avoidance < 0.5 ? 'low decay' : 'moderate decay',
     reflectionPattern: profile.reflectionDepth > 0.7 ? 'deep recursive reflection' : profile.reflectionDepth > 0.45 ? 'balanced reflection' : 'surface-first reflection',
     selfDeceptionPattern: repeatedBiasText.includes('familiar') || repeatedBiasText.includes('surface') ? repeatedBiasText : 'watch for comfort-language rationalization',
+    reflectionPrompt: profile.reflectionDepth > 0.7
+      ? 'Extract one hidden assumption, invert it, then reframe your final claim.'
+      : profile.avoidance > 0.65
+        ? 'State one concrete claim and one concrete next action to prevent narrative drift.'
+        : 'Write claim → evidence → counterpoint in three short blocks.',
+    protocolBias: profile.consistency < 0.5 ? 'consistency-first protocol' : profile.challengeTolerance < 0.5 ? 'tolerance-building protocol' : 'depth-expansion protocol',
+    dashboardEmphasis: profile.selfAwareness < 0.5 ? 'anchor quality and bias specificity' : profile.emotionalVariance > 0.65 ? 'recovery pacing and emotional regulation' : 'controlled escalation of challenge depth',
   }
 }
 
@@ -152,6 +222,15 @@ export function computeCognitiveProfile(input: {
   const recentHistory = input.history.slice(0, 40)
   const recentAnchors = input.anchors.slice(0, 30)
   const signals = input.behaviorSignals.slice(0, 80)
+  const signalStats = {
+    avoidance: buildSignalStats(signals, 'avoidance'),
+    consistency: buildSignalStats(signals, 'consistency'),
+    reflectionDepth: buildSignalStats(signals, 'reflectionDepth'),
+    challengeTolerance: buildSignalStats(signals, 'challengeTolerance'),
+    emotionalVariance: buildSignalStats(signals, 'emotionalVariance'),
+    noveltySeeking: buildSignalStats(signals, 'noveltySeeking'),
+    selfAwareness: buildSignalStats(signals, 'selfAwareness'),
+  }
 
   const evidence = emptyEvidenceRecord()
   const { repeatedBiasRatio, repeatedBiasText } = summarizeBias(recentAnchors)
@@ -167,7 +246,7 @@ export function computeCognitiveProfile(input: {
   const highDifficultyCompletions = recentHistory.filter((item) => item.isCompleted && item.reflectionDepth >= 7).length
 
   const missionRerolls = signals.filter((item) => item.source === 'mission' && item.signal.includes('reroll')).length
-  const missionCompletions = signals.filter((item) => item.source === 'mission' && item.signal.includes('complete')).length
+  const missionCompletions = signals.filter((item) => item.source === 'mission' && item.signal.includes('completed')).length
   const checkinsSaved = signals.filter((item) => item.source === 'checkin').length
   const journalSignals = signals.filter((item) => item.source === 'journal').length
   const protocolGap = input.activeProtocol ? 1 - input.activeProtocol.completedSessions / Math.max(1, input.activeProtocol.targetSessions) : 0.4
@@ -180,7 +259,6 @@ export function computeCognitiveProfile(input: {
   const cadenceScore = clamp01(1 - (averageGapDays - 1) / 5)
 
   const volatilitySource = recentEntries.flatMap((entry) => [entry.stress, entry.mood, entry.energy])
-  const emotionalVarianceRaw = clamp01(stdDev(volatilitySource) / 3.1)
 
   const uniqueCategories = new Set(recentHistory.map((item) => item.category.toLowerCase())).size
   const categoryDiversity = clamp01(uniqueCategories / 6)
@@ -198,12 +276,33 @@ export function computeCognitiveProfile(input: {
       ),
     )
 
-  const avoidanceRaw = clamp01(0.34 * stress + 0.22 * protocolGap + 0.2 * (1 - completionRate) + 0.14 * (missionRerolls / Math.max(1, missionCompletions + missionRerolls)) + 0.1 * (1 - focus))
-  const consistencyRaw = clamp01(0.42 * cadenceScore + 0.3 * completionRate + 0.14 * motivation + 0.14 * clamp01(checkinsSaved / 8))
-  const reflectionDepthRaw = clamp01(0.62 * reflectionHistory + 0.22 * focus + 0.16 * anchorQuality)
-  const challengeToleranceRaw = clamp01(0.4 * completionRate + 0.25 * clamp01(highDifficultyCompletions / 8) + 0.2 * (1 - missionRerolls / Math.max(1, missionCompletions + missionRerolls)) + 0.15 * (1 - avoidanceRaw))
-  const noveltySeekingRaw = clamp01(0.36 * curiosity + 0.23 * creativity + 0.21 * categoryDiversity + 0.2 * (1 - repeatedBiasRatio))
-  const selfAwarenessRaw = clamp01(0.45 * anchorQuality + 0.22 * reflectionDepthRaw + 0.18 * (1 - repeatedBiasRatio) + 0.15 * clamp01(journalSignals / 8))
+  const avoidanceRaw = clamp01(
+    0.3 * stress +
+      0.2 * protocolGap +
+      0.17 * (1 - completionRate) +
+      0.13 * (missionRerolls / Math.max(1, missionCompletions + missionRerolls)) +
+      0.1 * (1 - focus) +
+      0.1 * signalStats.avoidance.weightedAvg,
+  )
+  const consistencyRaw = clamp01(
+    0.34 * cadenceScore +
+      0.24 * completionRate +
+      0.14 * motivation +
+      0.12 * clamp01(checkinsSaved / 8) +
+      0.16 * signalStats.consistency.weightedAvg,
+  )
+  const reflectionDepthRaw = clamp01(0.52 * reflectionHistory + 0.2 * focus + 0.14 * anchorQuality + 0.14 * signalStats.reflectionDepth.weightedAvg)
+  const challengeToleranceRaw = clamp01(
+    0.32 * completionRate +
+      0.2 * clamp01(highDifficultyCompletions / 8) +
+      0.18 * (1 - missionRerolls / Math.max(1, missionCompletions + missionRerolls)) +
+      0.14 * (1 - avoidanceRaw) +
+      0.16 * signalStats.challengeTolerance.weightedAvg,
+  )
+  const noveltySeekingRaw = clamp01(0.31 * curiosity + 0.2 * creativity + 0.16 * categoryDiversity + 0.14 * (1 - repeatedBiasRatio) + 0.19 * signalStats.noveltySeeking.weightedAvg)
+  const selfAwarenessRaw = clamp01(0.34 * anchorQuality + 0.2 * reflectionDepthRaw + 0.14 * (1 - repeatedBiasRatio) + 0.1 * clamp01(journalSignals / 8) + 0.22 * signalStats.selfAwareness.weightedAvg)
+  const emotionalVarianceSignal = signalStats.emotionalVariance.weightedAvg
+  const emotionalVarianceRaw = clamp01(0.72 * clamp01(stdDev(volatilitySource) / 3.1) + 0.28 * emotionalVarianceSignal)
 
   addEvidence(evidence, 'avoidance', `Completion rate ${(completionRate * 100).toFixed(0)}% and stress ${Math.round(stress * 100)}% shaped avoidance`, 0.74, 'mission')
   addEvidence(evidence, 'avoidance', `Reroll ratio ${missionRerolls}/${Math.max(1, missionCompletions + missionRerolls)}`, 0.58, 'mission')
@@ -214,15 +313,26 @@ export function computeCognitiveProfile(input: {
   addEvidence(evidence, 'emotionalVariance', `Mood/stress variance ${emotionalVarianceRaw.toFixed(2)}`, 0.67, 'checkin')
   addEvidence(evidence, 'noveltySeeking', `Category diversity ${uniqueCategories} + repeated bias ratio ${(repeatedBiasRatio * 100).toFixed(0)}%`, 0.65, 'mission')
   addEvidence(evidence, 'selfAwareness', `Anchor quality ${Math.round(anchorQuality * 100)}%${repeatedBiasText ? `; repeated bias "${repeatedBiasText}"` : ''}`, 0.72, 'journal')
+  for (const trait of TRAITS) {
+    for (const signal of signalStats[trait].topSignals) {
+      addEvidence(
+        evidence,
+        trait,
+        signal.signal,
+        signal.weight,
+        signal.source,
+      )
+    }
+  }
 
   const confidence: CognitiveTraitConfidence = {
-    avoidance: confidenceFromCounts(recentHistory.length + signals.length),
-    consistency: confidenceFromCounts(recentEntries.length + checkinsSaved),
-    reflectionDepth: confidenceFromCounts(recentHistory.length + recentAnchors.length),
-    challengeTolerance: confidenceFromCounts(recentHistory.length + missionCompletions),
-    emotionalVariance: confidenceFromCounts(recentEntries.length),
-    noveltySeeking: confidenceFromCounts(recentHistory.length + recentAnchors.length),
-    selfAwareness: confidenceFromCounts(recentAnchors.length + journalSignals),
+    avoidance: confidenceFromCounts(recentHistory.length + signalStats.avoidance.count),
+    consistency: confidenceFromCounts(recentEntries.length + signalStats.consistency.count),
+    reflectionDepth: confidenceFromCounts(recentHistory.length + recentAnchors.length + signalStats.reflectionDepth.count),
+    challengeTolerance: confidenceFromCounts(recentHistory.length + missionCompletions + signalStats.challengeTolerance.count),
+    emotionalVariance: confidenceFromCounts(recentEntries.length + signalStats.emotionalVariance.count),
+    noveltySeeking: confidenceFromCounts(recentHistory.length + recentAnchors.length + signalStats.noveltySeeking.count),
+    selfAwareness: confidenceFromCounts(recentAnchors.length + journalSignals + signalStats.selfAwareness.count),
   }
 
   const profile: CognitiveProfile = {
@@ -241,6 +351,7 @@ export function computeCognitiveProfile(input: {
   ].slice(-120)
 
   const patterns = derivePatterns(profile, recentAnchors, recentHistory)
+  const shadowPatterns = detectShadowPatterns(profile, patterns)
   return {
     computedAtUtc: new Date().toISOString(),
     profile,
@@ -251,6 +362,7 @@ export function computeCognitiveProfile(input: {
     }, emptyEvidenceRecord()),
     history,
     patterns,
+    shadowPatterns,
   } satisfies CognitiveProfileSnapshot
 }
 

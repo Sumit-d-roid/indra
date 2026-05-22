@@ -38,6 +38,7 @@ export function AppShell() {
   const nextStep = loopIndex >= 0 ? dailyLoop[(loopIndex + 1) % dailyLoop.length] : dailyLoop[0]
   const profile = profileSnapshot?.profile
   const patterns = profileSnapshot?.patterns
+  const topShadow = profileSnapshot?.shadowPatterns?.[0]
 
   useEffect(() => {
     const refresh = () => setProfileSnapshot(getStoredCognitiveProfile())
@@ -130,7 +131,7 @@ export function AppShell() {
             <p className="text-[0.65rem] uppercase tracking-[0.4em] text-violet-200/60">adaptive notice</p>
             <p className="mt-3">
               {patterns
-                ? `Profile mode: ${patterns.curiosityStyle}; ${patterns.avoidanceStyle}.`
+                ? `Profile mode: ${patterns.curiosityStyle}; ${patterns.avoidanceStyle}.${topShadow ? ` Shadow watch: ${topShadow.title}.` : ''}`
                 : 'Local observer mode active. No login required while you iterate on cognition loops and challenge quality.'}
             </p>
           </div>

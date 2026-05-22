@@ -25,6 +25,10 @@
   - behavior signal ingestion from check-ins, mission rerolls/completions, and anchors.
   - adaptive mission/pacing/wording now driven by profile traits.
   - explainability panels added to dashboard and weekly review ("Why INDRA believes this").
+  - deeper text interpretation added from check-in emotional text + mission/anchor reflection text.
+  - shadow pattern detection added with risk severity and mitigation detail.
+  - protocol generation now profile-biased (consistency-first, tolerance-building, depth-expansion).
+  - reflection prompts now adapt directly from inferred profile patterns.
 
 ## Notes
 - Web API base now defaults to same-origin `/api` with Vite proxy to backend for GitHub dev URL compatibility.

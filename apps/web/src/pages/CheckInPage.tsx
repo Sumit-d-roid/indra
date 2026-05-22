@@ -3,6 +3,7 @@ import { Panel } from '../components/Panel'
 import { cognitiveEntryTemplate } from '../data/mockIndra'
 import { indraApi } from '../lib/api'
 import { recordBehaviorSignal } from '../lib/behaviorSignals'
+import { interpretEmotionText } from '../lib/textSignals'
 import type { CognitiveEntry, CognitiveEntryInput } from '../types'
 
 const sliders = [
@@ -67,6 +68,9 @@ export function CheckInPage() {
     setStatus('Saving scan...')
     try {
       const created = await indraApi.createCognitiveEntry(form)
+      const previous = entries[0]
+      const gapDays = previous ? (new Date(created.createdAtUtc).getTime() - new Date(previous.createdAtUtc).getTime()) / 86_400_000 : null
+      const emotion = interpretEmotionText(form.emotionalState)
       setEntries((current) => [created, ...current])
       recordBehaviorSignal({
         trait: 'consistency',
@@ -74,6 +78,20 @@ export function CheckInPage() {
         signal: `daily check-in saved with focus ${form.focusLevel}/10 and stress ${form.stress}/10`,
         weight: 0.64,
       })
+      recordBehaviorSignal({
+        trait: 'emotionalVariance',
+        source: 'checkin',
+        signal: `emotional state "${form.emotionalState}" volatility ${emotion.volatility.toFixed(2)}`,
+        weight: 0.52 + emotion.volatility * 0.36,
+      })
+      if (gapDays !== null) {
+        recordBehaviorSignal({
+          trait: 'consistency',
+          source: 'checkin',
+          signal: `check-in gap ${gapDays.toFixed(1)} days`,
+          weight: gapDays <= 1.5 ? 0.74 : 0.42,
+        })
+      }
       setStatus('Scan saved.')
     } catch (error) {
       setStatus(error instanceof Error ? `Save failed: ${error.message}` : 'Save failed.')

@@ -5,7 +5,7 @@ import { indraApi } from '../lib/api'
 import { getStoredCognitiveProfile } from '../lib/cognitiveProfile'
 import { listMemoryAnchors } from '../lib/memoryAnchors'
 import { activateProtocol, clearActiveProtocol, getActiveProtocol } from '../lib/protocols'
-import type { ActiveProtocol, CognitiveEntry, MemoryAnchor } from '../types'
+import type { ActiveProtocol, CognitiveEntry, CognitiveProfileSnapshot, MemoryAnchor } from '../types'
 
 type MetricDelta = {
   key: keyof Pick<CognitiveEntry, 'focusLevel' | 'curiosityLevel' | 'creativity' | 'stress' | 'motivation' | 'mentalSharpness'>
@@ -48,7 +48,17 @@ function toDelta(entries: CognitiveEntry[]) {
   })
 }
 
-function buildProtocol(topBias: string | null, stagnating: MetricDelta | null) {
+function buildProtocol(topBias: string | null, stagnating: MetricDelta | null, snapshot: CognitiveProfileSnapshot | null) {
+  const profileBias = snapshot?.patterns.protocolBias
+  if (profileBias === 'consistency-first protocol') {
+    return 'Run one short mission daily at the same time. Use strict 12-minute sessions and save one anchor every day.'
+  }
+  if (profileBias === 'tolerance-building protocol') {
+    return 'Run 3 discomfort-oriented missions this week. Keep challenge difficulty +1 above comfort and log recovery latency.'
+  }
+  if (profileBias === 'depth-expansion protocol') {
+    return 'Run 3 deep missions this week: each response must include assumption inversion and one measurable counter-model.'
+  }
   if (!topBias && !stagnating) {
     return 'Run 3 autopilot missions and save anchors after each mission to create enough weekly signal.'
   }
@@ -109,7 +119,7 @@ export function WeeklyReviewPage() {
   const deltas = useMemo(() => toDelta(entries), [entries])
   const strongestImproving = deltas.length > 0 ? [...deltas].sort((a, b) => b.delta - a.delta)[0] : null
   const stagnating = deltas.length > 0 ? [...deltas].sort((a, b) => Math.abs(a.delta) - Math.abs(b.delta))[0] : null
-  const protocol = buildProtocol(biasCounts[0]?.label ?? null, stagnating)
+  const protocol = buildProtocol(biasCounts[0]?.label ?? null, stagnating, profileSnapshot)
   const previousHistory = profileSnapshot && profileSnapshot.history.length >= 2
     ? profileSnapshot.history[profileSnapshot.history.length - 2]?.profile
     : null
@@ -189,6 +199,19 @@ export function WeeklyReviewPage() {
               <p className="mt-2 text-slate-300">
                 {profileSnapshot.evidence.avoidance[0]?.signal ?? 'No avoidance evidence yet.'}
               </p>
+            </div>
+          </div>
+          <div className="mt-4 rounded-2xl border border-rose-300/15 bg-rose-300/10 p-4">
+            <p className="text-xs uppercase tracking-[0.28em] text-rose-100/80">Shadow detection</p>
+            <div className="mt-3 space-y-2 text-sm text-slate-200">
+              {(profileSnapshot.shadowPatterns ?? []).map((shadow) => (
+                <div key={shadow.title} className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-300">
+                    {shadow.severity} · {shadow.title}
+                  </p>
+                  <p className="mt-1 text-slate-100">{shadow.detail}</p>
+                </div>
+              ))}
             </div>
           </div>
         </Panel>
