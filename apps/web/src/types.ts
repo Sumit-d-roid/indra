@@ -139,15 +139,6 @@ export type AnalyticsData = {
   }>
 }
 
-export type ChallengeHistoryItem = {
-  challengeId: string
-  title: string
-  category: string
-  isCompleted: boolean
-  reflectionDepth: number
-  createdAtUtc: string
-}
-
 export type MemoryAnchor = {
   id: string
   createdAtUtc: string
